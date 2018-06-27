@@ -1,0 +1,54 @@
+/*
+ * Copyright (c) 2018, General Electric
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Settings
+@import "px-defaults-design/_settings.defaults.scss";
+
+// Generic
+$inuit-enable-btn--disabled : true;
+$inuit-enable-btn--bare : true;
+@import 'px-buttons-design/_objects.buttons.scss';
+
+// Base
+@import "px-headings-design/_base.headings.scss";
+@import 'px-flexbox-design/_base.flexbox.scss';
+
+:host {
+  pointer-events: all;
+}
+
+h1 {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.no-min-width {
+  min-width: 0 !important;
+}
+
+.button--nav-right {
+  margin-left: 1rem;
+}
+
+.button--nav-left {
+  margin-right: 1rem;
+}
+
+// Trumps
+$inuit-enable-margins--tiny : true;
+$inuit-enable-margins--small : true;
+@import 'px-spacing-design/_trumps.spacing.scss';
+

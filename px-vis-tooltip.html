@@ -1,3 +1,19 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="../polymer/polymer.html"/>
 <link rel="import" href="../px-tooltip/px-tooltip.html" />
 <link rel="import" href="px-vis-behavior-common.html" />
@@ -5,7 +21,7 @@
 <link rel="import" href="px-vis-behavior-d3.html" />
 <link rel="import" href="px-vis-behavior-datetime.html"/>
 <link rel="import" href="px-vis-register.html" />
-<link rel="import" href="css/px-vis-tooltip-styles.html">
+<link rel="import" href="css/px-vis-tooltip-styles.html" />
 
 
 <!--
@@ -67,6 +83,8 @@ Custom property | Description
         mouse-coords="[[mousePosition]]">
           <px-vis-register
             id="register"
+            style="--px-tooltip-max-width: 10000px;--px-vis-register-border-color: transparent;"
+            hide-pagination-controls
             tooltip-style="[[tooltipStyle]]"
             truncation-length="100"
             groupings="[[_groupings]]"
@@ -85,6 +103,10 @@ Custom property | Description
             second-date-time-format="[[secondDateTimeFormat]]"
             separator="[[separator]]"
             timezone="[[timezone]]"
+            display-ordinal-value="[[displayOrdinalValue]]"
+            display-x-values-only="[[displayXValuesOnly]]"
+            display-y-values-only="[[displayYValuesOnly]]"
+            icon-color="[[iconColor]]"
             prevent-min-size>
           </px-vis-register>
       </px-tooltip>
@@ -107,7 +129,8 @@ Custom property | Description
       PxVisBehaviorTime.datetime,
       PxVisBehavior.forceDateTimeDisplay,
       PxVisBehaviorRegister.groupings,
-      PxVisBehavior.commonMethods
+      PxVisBehavior.commonMethods,
+      PxVisBehaviorRegister.displayTypes
     ],
 
     /**
@@ -188,7 +211,6 @@ Custom property | Description
      *  Forces the tooltip to show by calling _show on px-tooltip.
      */
     forceShow: function(numberSeriesChanged) {
-
       if(this._tooltipElem) {
         this._tooltipElem.set('opened', true);
       }
@@ -196,6 +218,16 @@ Custom property | Description
       if(numberSeriesChanged) {
         //make sure the tooltip will take its new size into account
         this._tooltipElem.notifyResize();
+      }
+
+      // dirty workaround to force register to display mutedSeries properly
+      // if a series is muted while tooltip is hidden, muted class wont get applied
+      // workaround resets mutedSeries to force classes to be recalculated
+      var reg = this.shadowRoot ? this.shadowRoot.querySelector('#register') : this.querySelector('#register');
+
+      if(reg) {
+        reg.mutedSeries = {};
+        reg.set('mutedSeries', this.mutedSeries);
       }
     },
     /**
@@ -218,9 +250,9 @@ Custom property | Description
         return this.groupings
       }
 
-      if(this._mutedTooltipData.series.length < 16) {
+      if(this._mutedTooltipData && this._mutedTooltipData.series.length < 16) {
         return 1;
-      } else if(this._mutedTooltipData.series.length < 24) {
+      } else if(this._mutedTooltipData && this._mutedTooltipData.series.length < 24) {
         return 2;
       } else {
         return 3;
@@ -231,10 +263,10 @@ Custom property | Description
        return;
      }
 
-
      if(this._mutedTooltipData) {
       var oldHidden = this._internalHidden,
-          hidden = this._mutedTooltipData.hidden || this.hide || this._mutedTooltipData.series.length === 0;
+          hidden = this._mutedTooltipData.hidden || this.hide ||
+            this._mutedTooltipData.series && this._mutedTooltipData.series.length === 0;
       this.set('_internalHidden', hidden);
 
       if(!this._tooltipElem && !this._internalHidden) {
@@ -263,9 +295,9 @@ Custom property | Description
      }
     },
     _computeMutedData: function() {
-     if(this.hasUndefinedArguments(arguments)) {
-       return;
-     }
+      if(this.hasUndefinedArguments(arguments)) {
+        return;
+      }
 
       if(!(this.tooltipData === undefined || this.hardMute === undefined || this.mutedSeries === undefined)) {
 

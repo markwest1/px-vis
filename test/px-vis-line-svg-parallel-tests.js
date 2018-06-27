@@ -1,3 +1,20 @@
+/**
+ * @license
+ * Copyright (c) 2018, General Electric
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 function runParallelTests() {
   suite('px-vis-line-svg renders parallel axis to SVG', function() {
     var parallelScale,
@@ -156,7 +173,7 @@ function runParallelTests() {
             "name":"mySeries",
             "x":['y','y2'],
             "y":['y','y2'],
-            "color": colorSet[0]
+            "color": ["red", "blue"]
           }
         },
         dim = ['y','y2'],
@@ -198,6 +215,7 @@ function runParallelTests() {
       parallelGradientScale.set('axes',dim);
       parallelGradientScale.set('dimensions',dim);
 
+      parallelGradientLine.set('timeKey', 'x');
       parallelGradientLine.set('completeSeriesConfig',completeSeriesConfig);
       parallelGradientLine.set('seriesId',"x");
       parallelGradientLine.set('chartData',d);
@@ -224,18 +242,18 @@ function runParallelTests() {
     });
 
     test('// line series has the right color', function() {
-      assert.equal(d3.select(linePath.nodes()[0]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[1]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[2]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[3]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[4]).attr('stroke').split(' ').join(''),colorSet[0]);
+      assert.equal(d3.select(linePath.nodes()[0]).attr('stroke').split(' ').join(''), 'rgb(255,0,0)');
+      assert.equal(d3.select(linePath.nodes()[1]).attr('stroke').split(' ').join(''), 'rgb(191,0,64)');
+      assert.equal(d3.select(linePath.nodes()[2]).attr('stroke').split(' ').join(''), 'rgb(128,0,128)');
+      assert.equal(d3.select(linePath.nodes()[3]).attr('stroke').split(' ').join(''), 'rgb(64,0,191)');
+      assert.equal(d3.select(linePath.nodes()[4]).attr('stroke').split(' ').join(''),'rgb(0,0,255)');
     });
 
     test('// line series has the right opacity', function() {
-      assert.equal(Math.round(d3.select(linePath.nodes()[0]).attr('stroke-opacity').split(' ').join('') * 10)/10,0.2);
-      assert.equal(Math.round(d3.select(linePath.nodes()[1]).attr('stroke-opacity').split(' ').join('')* 10)/10,0.4);
-      assert.equal(Math.round(d3.select(linePath.nodes()[2]).attr('stroke-opacity').split(' ').join('')* 10)/10,0.6);
-      assert.equal(Math.round(d3.select(linePath.nodes()[3]).attr('stroke-opacity').split(' ').join('')* 10)/10,0.8);
+      assert.equal(Math.round(d3.select(linePath.nodes()[0]).attr('stroke-opacity').split(' ').join('') * 10)/10,1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[1]).attr('stroke-opacity').split(' ').join('')* 10)/10,1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[2]).attr('stroke-opacity').split(' ').join('')* 10)/10,1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[3]).attr('stroke-opacity').split(' ').join('')* 10)/10,1.0);
       assert.equal(Math.round(d3.select(linePath.nodes()[4]).attr('stroke-opacity').split(' ').join('')* 10)/10,1.0);
     });
 
@@ -443,14 +461,14 @@ function runParallelTests() {
             "name":"a",
             "x":['y','y2'],
             "y":['y','y2'],
-            "color": colorSet[0]
+            "color": ["red", "blue"]
           },
           "b":{
             "type":"line",
             "name":"b",
             "x":['y','y2'],
             "y":['y','y2'],
-            "color": colorSet[1]
+            "color": ["green", "red"]
           }
         },
         dim = ['y','y2'],
@@ -493,6 +511,7 @@ function runParallelTests() {
       parallelCategoryGradientScale.set('axes',dim);
       parallelCategoryGradientScale.set('dimensions',dim);
 
+      parallelCategoryGradientLine.set('timeKey', 'x');
       parallelCategoryGradientLine.set('completeSeriesConfig',completeSeriesConfig);
       parallelCategoryGradientLine.set('seriesId',"x");
       parallelCategoryGradientLine.set('categoryKey',"cat");
@@ -522,19 +541,19 @@ function runParallelTests() {
     });
 
     test('// line series has the right color', function() {
-      assert.equal(d3.select(linePath.nodes()[0]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[1]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[2]).attr('stroke').split(' ').join(''),colorSet[1]);
-      assert.equal(d3.select(linePath.nodes()[3]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[4]).attr('stroke').split(' ').join(''),colorSet[1]);
+      assert.equal(d3.select(linePath.nodes()[0]).attr('stroke').split(' ').join(''), 'rgb(255,0,0)');
+      assert.equal(d3.select(linePath.nodes()[1]).attr('stroke').split(' ').join(''), 'rgb(191,0,64)');
+      assert.equal(d3.select(linePath.nodes()[2]).attr('stroke').split(' ').join(''), 'rgb(128,64,0)');
+      assert.equal(d3.select(linePath.nodes()[3]).attr('stroke').split(' ').join(''), 'rgb(64,0,191)');
+      assert.equal(d3.select(linePath.nodes()[4]).attr('stroke').split(' ').join(''), 'rgb(255,0,0)');
     });
 
     test('// line series has the right opacity', function() {
-      assert.equal(Math.round(d3.select(linePath.nodes()[0]).attr('stroke-opacity').split(' ').join('') * 10)/10,0.2);
-      assert.equal(Math.round(d3.select(linePath.nodes()[1]).attr('stroke-opacity').split(' ').join('')* 10)/10,0.4);
-      assert.equal(Math.round(d3.select(linePath.nodes()[2]).attr('stroke-opacity').split(' ').join('')* 10)/10,0.6);
-      assert.equal(Math.round(d3.select(linePath.nodes()[3]).attr('stroke-opacity').split(' ').join('')* 10)/10,0.8);
-      assert.equal(Math.round(d3.select(linePath.nodes()[4]).attr('stroke-opacity').split(' ').join('')* 10)/10,1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[0]).attr('stroke-opacity').split(' ').join('') * 10)/10, 1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[1]).attr('stroke-opacity').split(' ').join('')* 10)/10, 1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[2]).attr('stroke-opacity').split(' ').join('')* 10)/10, 1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[3]).attr('stroke-opacity').split(' ').join('')* 10)/10, 1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[4]).attr('stroke-opacity').split(' ').join('')* 10)/10, 1.0);
     });
 
     test('// line d', function() {
@@ -567,6 +586,7 @@ function runParallelTests() {
       parallelCategoryGradientSVG = document.getElementById('parallelCategoryGradientSVG'),
       parallelCategoryGradientLine = document.getElementById('parallelCategoryGradientLine');
 
+      parallelCategoryGradientLine.set('timeDomain',sd);
       parallelCategoryGradientLine.set('selectedDomain',sd);
       parallelCategoryGradientLine.set('mutedSeries',m);
 
@@ -577,16 +597,14 @@ function runParallelTests() {
     });
 
     test('// line series has the right color', function() {
-      assert.equal(d3.select(linePath.nodes()[0]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[1]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[2]).attr('stroke').split(' ').join(''),colorSet[1]);
-      assert.equal(d3.select(linePath.nodes()[3]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[4]).attr('stroke').split(' ').join(''),colorSet[1]);
+      assert.equal(d3.select(linePath.nodes()[2]).attr('stroke').split(' ').join(''), 'rgb(0,128,0)');
+      assert.equal(d3.select(linePath.nodes()[3]).attr('stroke').split(' ').join(''), 'rgb(128,0,128)');
+      assert.equal(d3.select(linePath.nodes()[4]).attr('stroke').split(' ').join(''), 'rgb(255,0,0)');
     });
 
     test('// line series has the right opacity', function() {
-      assert.equal(Math.round(d3.select(linePath.nodes()[2]).attr('stroke-opacity').split(' ').join('')* 10)/10,0.6);
-      assert.equal(Math.round(d3.select(linePath.nodes()[3]).attr('stroke-opacity').split(' ').join('')* 10)/10,0.8);
+      assert.equal(Math.round(d3.select(linePath.nodes()[2]).attr('stroke-opacity').split(' ').join('')* 10)/10,1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[3]).attr('stroke-opacity').split(' ').join('')* 10)/10,1.0);
       assert.equal(Math.round(d3.select(linePath.nodes()[4]).attr('stroke-opacity').split(' ').join('')* 10)/10,1.0);
     });
 
@@ -617,6 +635,7 @@ function runParallelTests() {
       parallelCategoryGradientLine = document.getElementById('parallelCategoryGradientLine');
 
       parallelCategoryGradientLine.set('selectedDomain',sd);
+      parallelCategoryGradientLine.set('timeDomain',sd);
       parallelCategoryGradientLine.set('mutedSeries',m);
 
       window.setTimeout(function(){
@@ -626,19 +645,19 @@ function runParallelTests() {
     });
 
     test('// line series has the right color', function() {
-      assert.equal(d3.select(linePath.nodes()[0]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[1]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[2]).attr('stroke').split(' ').join(''),colorSet[1]);
-      assert.equal(d3.select(linePath.nodes()[3]).attr('stroke').split(' ').join(''),colorSet[0]);
-      assert.equal(d3.select(linePath.nodes()[4]).attr('stroke').split(' ').join(''),colorSet[1]);
+      assert.equal(d3.select(linePath.nodes()[0]).attr('stroke').split(' ').join(''), 'rgb(255,0,0)');
+      assert.equal(d3.select(linePath.nodes()[1]).attr('stroke').split(' ').join(''), 'rgb(191,0,64)');
+      assert.equal(d3.select(linePath.nodes()[2]).attr('stroke').split(' ').join(''), 'rgb(128,64,0)');
+      assert.equal(d3.select(linePath.nodes()[3]).attr('stroke').split(' ').join(''), 'rgb(64,0,191)');
+      assert.equal(d3.select(linePath.nodes()[4]).attr('stroke').split(' ').join(''), 'rgb(255,0,0)');
     });
 
     test('// line series has the right opacity', function() {
-      assert.equal(Math.round(d3.select(linePath.nodes()[0]).attr('stroke-opacity').split(' ').join('')* 10)/10,0.2);
-      assert.equal(Math.round(d3.select(linePath.nodes()[1]).attr('stroke-opacity').split(' ').join('')* 10)/10,0.4);
-      assert.equal(Math.round(d3.select(linePath.nodes()[2]).attr('stroke-opacity').split(' ').join('')* 10)/10,0.6);
-      assert.equal(Math.round(d3.select(linePath.nodes()[3]).attr('stroke-opacity').split(' ').join('')* 10)/10,0.8);
-      assert.equal(Math.round(d3.select(linePath.nodes()[4]).attr('stroke-opacity').split(' ').join('')* 10)/10,1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[0]).attr('stroke-opacity').split(' ').join('')* 10)/10, 1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[1]).attr('stroke-opacity').split(' ').join('')* 10)/10, 1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[2]).attr('stroke-opacity').split(' ').join('')* 10)/10, 1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[3]).attr('stroke-opacity').split(' ').join('')* 10)/10, 1.0);
+      assert.equal(Math.round(d3.select(linePath.nodes()[4]).attr('stroke-opacity').split(' ').join('')* 10)/10, 1.0);
     });
 
     test('// line series has the right opacity', function() {

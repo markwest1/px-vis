@@ -1,3 +1,20 @@
+/**
+ * @license
+ * Copyright (c) 2018, General Electric
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 document.addEventListener("WebComponentsReady", function() {
   runTests();
 });
@@ -124,8 +141,8 @@ test('baseXGrid ID is random', function() {
       assert.equal(baseXGrid._grid.tickSizeInner(),-240);
     });
 
-    test('baseXGrid translateAmt', function() {
-      assert.equal(JSON.stringify(baseXGrid.translateAmt),'[0,240]');
+    test('baseXGrid _translateAmt', function() {
+      assert.equal(JSON.stringify(baseXGrid._translateAmt),'[0,240]');
     });
 
     test('baseXGrid _gridGroup created', function() {
@@ -205,8 +222,8 @@ test('baseYGrid ID is random', function() {
       assert.equal(baseYGrid._grid.tickSizeInner(),-445);
     });
 
-    test('baseYGrid translateAmt', function() {
-      assert.equal(JSON.stringify(baseYGrid.translateAmt),'[0,0]');
+    test('baseYGrid _translateAmt', function() {
+      assert.equal(JSON.stringify(baseYGrid._translateAmt),'[0,0]');
     });
 
     test('baseYGrid _gridGroup created', function() {

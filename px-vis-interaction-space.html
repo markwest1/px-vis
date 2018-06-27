@@ -1,3 +1,19 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="../polymer/polymer.html"/>
 <link rel="import" href="../px-icon-set/px-icon-set.html"/>
 <link rel="import" href="px-vis-behavior-common.html" />
@@ -79,7 +95,8 @@ TODO implement a dev setting to choose between only showing data at that x, snap
       PxVisBehavior.preventWebWorkerSynchronization,
       PxVisBehavior.wwDataSyncCounter,
       PxVisBehaviorD3.cursorIcon,
-      PxVisBehaviorInteraction.lasso
+      PxVisBehaviorInteraction.lasso,
+      PxVisBehavior.scaleTypeCheck
     ],
     /***EVENTS****/
     /*
@@ -329,7 +346,15 @@ TODO implement a dev setting to choose between only showing data at that x, snap
         }
       },
       _height: Number,
-      _width: Number
+      _width: Number,
+      isBar: {
+        type: Boolean,
+        value: false
+      },
+      isHeatmap: {
+        type: Boolean,
+        value: false
+      }
     },
 
     observers: [
@@ -341,7 +366,8 @@ TODO implement a dev setting to choose between only showing data at that x, snap
       '_resetTooltipDataLegacy(completeSeriesConfig.*)',
       '_resetTooltipData(seriesKeys.*, defaultEmptyData.*)',
       '_createQuadtreeData(wwDataSyncCounter, width, height, margin.*, domainChanged, searchType, useQuadtree, counterClockwise, xAxisType, preventWebWorkerSynchronization)',
-      '_callCreateQuadtreeData(mutedSeries)'
+      '_callCreateQuadtreeData(mutedSeries)',
+      '_updateTooltipData(domainChanged)'
     ],
 
     /**
@@ -397,6 +423,7 @@ TODO implement a dev setting to choose between only showing data at that x, snap
 
         this._rect.on("mousemove.cursor", this._updateCursor.bind(this));
         this._rect.on("mouseout.cursor", this._hideCursor.bind(this));
+        this._rect.on("mouseenter", function() { this.dispatchEvent(new CustomEvent('px-vis-tooltip-sizing-request', { bubbles: true, composed: true })); }.bind(this));
 
         this._drawCursorGroup();
 
@@ -673,19 +700,16 @@ TODO implement a dev setting to choose between only showing data at that x, snap
      * Searches through all data series, then compiles and returns the tooltip data object.
      */
     _getDataForAllSeries: function(mousePos) {
-      var x1 = this.xAxisType !== 'ordinal' && this.xAxisType !== 'scaleBand' ? this.x.invert(mousePos[0]) : null,
+      var x1 = this._isOrdinalType(this.xAxisType) ? null : this.x.invert(mousePos[0]),
           dataObj = this._returnTooltipDataStub(mousePos); // setup a holder for our data
 
-      if(this.preventWebWorkerSynchronization ||
-            this.xAxisType === 'ordinal' ||
-            this.xAxisType === 'scaleBand') {
-
+      if(this.preventWebWorkerSynchronization || this._isOrdinalType(this.xAxisType)) {
         this._searchLocally(mousePos, dataObj, x1);
         return;
       }
 
-      if((this.xAxisType === 'time' || this.xAxisType === 'timeLocal') &&
-            this.searchFor !== 'point') {
+      if(this._isTimeType(this.xAxisType) && this.searchFor !== 'point' && this.lassoType === 'xRect') {
+        console.log(this.lassoType)
         dataObj.time = x1;
         this._searchLocally(mousePos, dataObj, x1);
         return;
@@ -713,6 +737,7 @@ TODO implement a dev setting to choose between only showing data at that x, snap
         if(!e.data) { return; }
 
         dataObj.series = e.data.series;
+        dataObj.seriesObj = e.data.seriesObj;
         dataObj.rawData = e.data.rawData;
         dataObj.timeStamps = e.data.timeStamps;
         dataObj.time =  e.data.time ? e.data.time : dataObj.time;
@@ -735,8 +760,34 @@ TODO implement a dev setting to choose between only showing data at that x, snap
     },
 
     _searchLocally: function(mousePos, dataObj, x1) {
-      var keys = this.seriesKeys && this.seriesKeys.length ? this.seriesKeys : Object.keys(this.completeSeriesConfig),
-          closestTimestamp = { "distance": Number.MAX_VALUE, "time": null },
+      if(this._isTimeType(this.xAxisType) || this.isBar || this.isHeatmap) {
+        this._findSingleDataset(mousePos, dataObj, x1);
+
+      } else {
+        this._findDataPerKey(mousePos, dataObj, x1);
+      }
+
+      this._calcDataFinished(dataObj);
+    },
+
+    _findSingleDataset: function(mousePos, dataObj, x1) {
+      // bar is closer to time in that we just want to return data associated with the ordinal position we are over
+      if(this.isBar) {
+        this._searchBarData(mousePos, dataObj, x1);
+
+      //time based X axis
+      } else if(this.isHeatmap) {
+        this._searchHeatmapData(mousePos, dataObj);
+      } else {
+        this._searchTimeData(mousePos, dataObj, x1);
+      }
+    },
+
+    _findDataPerKey: function(mousePos, dataObj, x1) {
+      var keys = this.seriesKeys && this.seriesKeys.length ?
+            this.seriesKeys :
+            Object.keys(this.completeSeriesConfig),
+          closestTimestamp = { "distance": Number.MAX_VALUE, "time": null };
           //search for timestamp if we don't have it already (non time based chart) and we know the data has some notion of time -- !! --> turn into a bool
           searchTimeStamp = dataObj.time === null && !!this.chartData[0][this.timeData];
 
@@ -750,16 +801,19 @@ TODO implement a dev setting to choose between only showing data at that x, snap
           //calc this series: returns updated dataObj, xArr, yArr & closestTimestamp
           this._calcSerieData(dataObj, searchTimeStamp, closestTimestamp, x1, keys[i], mousePos);
         } else {
-          dataObj.series.push({'name': keys[i], 'value': null, 'coord': [] });
+          this._createEmptySeriesEntry(dataObj, keys[i]);
         }
       } //for
 
       // add the timestamp
-      if(searchTimeStamp) {
+      if(searchTimeStamp && closestTimestamp.time) {
         dataObj.time = closestTimestamp.time;
       }
+    },
 
-      this._calcDataFinished(dataObj);
+    _createEmptySeriesEntry: function(dataObj, k) {
+      //TODO: coord null or [] ?
+      dataObj.series.push({'name': k, 'value': null, 'coord': null });
     },
 
     /**
@@ -778,27 +832,21 @@ TODO implement a dev setting to choose between only showing data at that x, snap
           isContinuous = false;
 
       //ordinal are specials...
-      if(this.xAxisType === 'ordinal' || this.xAxisType === 'scaleBand') {
+      if(this._isOrdinalType(this.xAxisType)) {
         //find ordinal value for X
         result.series[xKey] = this._getOrdinalValue(true, mousePos[0], axisKey);
 
         //now get Y
-        if(this.yAxisType === 'ordinal' || this.yAxisType === 'scaleBand') {
+        if(this._isOrdinalType(this.yAxisType)) {
           result.series[yKey] = this._getOrdinalValue(false, mousePos[1], axisKey);
         } else {
           y1 = this.isMultiY ? this.y[axisKey].invert(mousePos[1]) : this.y.invert(mousePos[1]);
           result.series[yKey] = this._getClosestValue(false, y1, this.chartData, xKey, yKey, result.series[xKey]);
         }
 
-      } else if(this.yAxisType === 'ordinal' || this.yAxisType === 'scaleBand') {
+      } else if(this._isOrdinalType(this.yAxisType)) {
         result.series[yKey] = this._getOrdinalValue(false, mousePos[1], axisKey);
         result.series[xKey] = this._getClosestValue(true, x1, this.chartData, xKey, yKey, result.series[yKey]);
-
-      //time based X axis
-      } else if(this.xAxisType === 'time' || this.xAxisType === 'timeLocal') {
-        result = this._searchTimeData(x1, k, xKey, yKey, dataObj);
-
-        dataObj.time = result.series[xKey]
 
       } else  {  //non time based: iterate over points and find the closest
         result = this._searchContinuousData(searchTimeStamp, closestTimestamp, mousePos, xKey, yKey, axisKey, dataObj);
@@ -807,7 +855,7 @@ TODO implement a dev setting to choose between only showing data at that x, snap
 
       //we already got the pixel coords in continuous
       if(!isContinuous) {
-        result.coords = [this.x(result.series[xKey]), this.isMultiY ? this.y[axisKey](result.series[yKey]) : this.y(result.series[yKey])]
+        result.coords = this._getCoordsForValues(result.series[xKey], result.series[yKey], axisKey);
 
         //also keep pixel coords in array
         dataObj.xArr.push(result.coords[0]);
@@ -815,6 +863,7 @@ TODO implement a dev setting to choose between only showing data at that x, snap
       }
 
       dataObj.series.push({'name': k, 'value': result.series, 'coord': result.coords });
+      dataObj.seriesObj[k] = {'value': result.series, 'coord': result.coords };
       dataObj.rawData = result.rawData;
       // TODO Convert to SET when we can use ES6
       dataObj.timeStamps = result.timeStamps;
@@ -825,15 +874,19 @@ TODO implement a dev setting to choose between only showing data at that x, snap
      *
      * @method _searchTimeData
      */
-    _searchTimeData: function(x1, k, xKey, yKey, dataObj) {
+    _searchTimeData: function(mousePos, dataObj, x1) {
       /*
         d3.bisector returns index in our array that corresponds to the horizontal position of the mouse pointer.
         Specifically this returns the date that falls to the left of the mouse cursor.
       */
-      var bisectDate = Px.d3.bisector(function(d) {
-            return d[this.completeSeriesConfig[k]['x']];
+      var keys = this.seriesKeys && this.seriesKeys.length ?
+            this.seriesKeys :
+            Object.keys(this.completeSeriesConfig),
+          bisectDate = Px.d3.bisector(function(d) {
+            return d[this.timeData];
           }.bind(this)).left,
           index,
+          yKey,
           d0,
           d1,
           r,
@@ -860,7 +913,7 @@ TODO implement a dev setting to choose between only showing data at that x, snap
 
         //get point to the right of min and iterate until we reach max
         do {
-          timestamp = this.chartData[index][xKey];
+          timestamp = this.chartData[index][this.timeData];
 
           if(timestamp < ext[1]) {
 
@@ -884,21 +937,37 @@ TODO implement a dev setting to choose between only showing data at that x, snap
         d0 = this.chartData[index - 1],
         d1 = (this.chartData[index]) ? this.chartData[index] : this.chartData[index - 1],
         // sets result as the closest date to the mouse
-        r = (x1 - d0[xKey] > d1[xKey] - x1) ? d1 : d0;
-        result.series[xKey] = r[xKey];
-        result.series[yKey] = r[yKey];
+        r = (x1 - d0[this.timeData] > d1[this.timeData] - x1) ? d1 : d0;
+        result.series = r;
 
-        if(!result.timeStampsTracker[r[xKey]]) {
+        if(!result.timeStampsTracker[r[this.timeData]]) {
           //TODO: pixel search? Should the fuzzy time be applied here instead
           result.rawData.push(r);
 
           // TODO Convert to SET when we can use ES6
-          result.timeStamps.push(r[xKey]);
-          result.timeStampsTracker[r[xKey]] = true;
+          result.timeStamps.push(r[this.timeData]);
+          result.timeStampsTracker[r[this.timeData]] = true;
         }
       }
 
-      return result
+      let coord,
+          axisKey;
+
+      for(var i=0; i<keys.length; i++) {
+        yKey = this.completeSeriesConfig[keys[i]]['y'];
+        axisKey = (this.completeSeriesConfig[keys[i]]['axis'] && this.completeSeriesConfig[keys[i]]['axis']['id']) ? this.completeSeriesConfig[keys[i]]['axis']['id'] : null;
+
+        coord = [this.x(result.series[this.timeData]), this.isMultiY ? this.y[axisKey](result.series[yKey]) : this.y(result.series[yKey])]
+
+        dataObj.series.push({'name': keys[i], 'value': result.series, 'coord': coord });
+        dataObj.seriesObj[keys[i]] = {'value': result.series, 'coord': coord };
+      }
+
+      dataObj.rawData = result.rawData;
+      // TODO Convert to SET when we can use ES6
+      dataObj.timeStamps = result.timeStamps;
+
+      dataObj.time = result.series[this.timeData];
     },
 
     /**
@@ -1107,6 +1176,80 @@ TODO implement a dev setting to choose between only showing data at that x, snap
 
       return result;
     },
+
+    _searchBarData: function(mousePos, dataObj, x1) {
+      var keys = this.seriesKeys,
+          ordVal,
+          bandStart,
+          bandEnd,
+          ordScale,
+          linScale,
+          mouseIndex,
+          ordKey,
+          x,
+          y,
+          result = {
+            "series": {},
+            "coord": [],
+          };
+
+      if(this._isOrdinalType(this.xAxisType)) {
+        ordScale = 'x';
+        linScale = 'y';
+        mouseIndex = 0;
+        ordKey = this.completeSeriesConfig[keys[0]]['x'];
+      } else {
+        ordScale = 'y';
+        linScale = 'x';
+        mouseIndex = 1;
+        ordKey = this.completeSeriesConfig[keys[0]]['y'];
+      }
+
+      ordVal = this[ordScale].invert(mousePos[mouseIndex]);
+      bandStart = this[ordScale](ordVal);
+      bandEnd = bandStart + this[ordScale].bandwidth();
+
+      // our self-created ordScale.invert counts the padding between bands
+      // So check if we are in the padding space or actually over the bar
+      if(bandStart <= mousePos[mouseIndex] && mousePos[mouseIndex] <= bandEnd) {
+        // Assuming small datasets; otherwise we may need to revisit this
+        for(var i=0; i< this.chartData.length; i++) {
+          if(this.chartData[i][ordKey] === ordVal) {
+            result.series = this.chartData[i];
+            break;
+          }
+        }
+
+        x = this[ordScale](ordVal);
+        for(var i=0; i<keys.length; i++) {
+          y = this[linScale](result.series[this.completeSeriesConfig[keys[i]][linScale]]);
+          result.coord = ordScale === 'x' ? [x,y] : [y,x];
+
+          dataObj.series.push({'name': keys[i], 'value': result.series, 'coord': result.coord });
+          dataObj.seriesObj[keys[i]] = {'value': result.series, 'coord': result.coord };
+          dataObj.ordinalSet = ordVal;
+        }
+      }
+    },
+
+    _searchHeatmapData(mousePos, dataObj) {
+
+      const x = this.x.invert(mousePos[0]),
+            y = this.y.invert(mousePos[1]),
+            xKey = this.completeSeriesConfig[this.seriesKeys[0]].x,
+            yKey = this.completeSeriesConfig[this.seriesKeys[0]].y;
+
+      for(var i=0; i<this.chartData.length; i++) {
+        if(this.chartData[i][xKey] === x && this.chartData[i][yKey] === y) {
+          dataObj.series.push({
+            'name': this.seriesKeys[0],
+            'value': this.chartData[i],
+            'coord': [this.x(this.chartData[i][xKey]), this.y(this.chartData[i][yKey])]});
+          break;
+        }
+      }
+    },
+
     /**
      * Helper function called on document.mouseup.
      * Assumes the user wanted to 'close' the action box, and calls _finishActionBox.
@@ -1125,7 +1268,7 @@ TODO implement a dev setting to choose between only showing data at that x, snap
         this.set('extentsAction', 'pan');
         this.mouseDown = true;
 
-        this._resetTooltipData();
+        //this._resetTooltipData();
 
         //in case the user clicks inside the chart, and mouses out, we are waiting for a mouseup, and closing our action box with the coordinates available on the mouseup.
         Px.d3.select(document).on('mouseup.action', this._stopPanning.bind(this));
@@ -1470,7 +1613,7 @@ TODO implement a dev setting to choose between only showing data at that x, snap
         return;
       }
 
-      if(this.domainChanged !== null && this.useQuadtree && !this.preventWebWorkerSynchronization && this.xAxisType !== 'ordinal' && this.xAxisType !== 'scaleBand') {
+      if(this.domainChanged && this.useQuadtree && !this.preventWebWorkerSynchronization && this.xAxisType !== 'ordinal' && this.xAxisType !== 'scaleBand') {
         this.debounce('buildQuadtree', function() {
           var w = this.width - this.margin.right - this.margin.left,
               h = this.height - this.margin.top - this.margin.bottom,
@@ -1534,6 +1677,63 @@ TODO implement a dev setting to choose between only showing data at that x, snap
       }
 
       return data;
+    },
+
+    _updateTooltipData: function() {
+      if(this.tooltipData && this.tooltipData.seriesObj) {
+
+        let updated = false;
+
+        //update coords in tooltip data because of a scale change
+        this.tooltipData.series.forEach(function(item, i) {
+
+          if(item.value && item.coord) {
+            let axisKey;
+            if(this.isMultiY) {
+              axisKey = (this.completeSeriesConfig[item.name]['axis'] && this.completeSeriesConfig[item.name]['axis']['id']) ? this.completeSeriesConfig[item.name]['axis']['id'] : null;
+            }
+
+            //ask the chart scale to convert those data values to pixels
+            //this is synchronous
+            this.fire('px-vis-request-pixel-for-data', {callback: function(info) {
+                item.coord = info.pixel;
+                this.tooltipData.seriesObj[item.name] = item;
+              }.bind(this),
+                //data values
+                data: [item.value[this.completeSeriesConfig[item.name].x], item.value[this.completeSeriesConfig[item.name].y]],
+                //seriesName
+                series: item.name,
+                //charts margin are "outside" of the interaction space itself
+                //so we don't want them for this calculation
+                margin: {'top': 0, 'bottom':0, 'left':0, 'right': 0},
+                //for polar we want those coordinates to be relative to the
+                //center, not the top left corner
+                relativeToCenter: true}
+            );
+
+            updated = true;
+          }
+        }.bind(this));
+
+
+
+        if(updated) {
+
+          //copy all data in a new object
+          let newTtData = {},
+              keys = Object.keys(this.tooltipData);
+
+          for(var i=0; i<keys.length; i++) {
+            newTtData[keys[i]] = this.tooltipData[keys[i]];
+          }
+
+          this.set('tooltipData', newTtData);
+        }
+      }
+    },
+
+    _getCoordsForValues(xVal, yVal, axisKey) {
+      return [this.x(xVal), this.isMultiY ? this.y[axisKey](yVal) : this.y(yVal)];
     }
 
   });

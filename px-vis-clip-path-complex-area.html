@@ -1,3 +1,19 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="../polymer/polymer.html"/>
 <link rel="import" href="px-vis-behavior-common.html" />
 <link rel="import" href="px-vis-behavior-d3.html" />
@@ -85,43 +101,46 @@ https://developer.mozilla.org/en-US/docs/Web/SVG/Element/clipPath
        return;
      }
 
-      if(!this._clipPathObj) {
-        this.set('clipPath', this.generateRandomID('cp_'));
-        this.fire('px-vis-clip-path-updated', { 'dataVar': 'clipPath', 'data': this.clipPath, 'method':'set' });
+     if(this.domainChanged) {
 
-        this._clipPathObj =  this.svg
-          .append("clipPath")
-          .attr("id",this.clipPath);
+        if(!this._clipPathObj) {
+          this.set('clipPath', this.generateRandomID('cp_'));
+          this.fire('px-vis-clip-path-updated', { 'dataVar': 'clipPath', 'data': this.clipPath, 'method':'set' });
+
+          this._clipPathObj =  this.svg
+            .append("clipPath")
+            .attr("id",this.clipPath);
+        }
+
+        var _this = this,
+            area = Px.d3.radialArea()
+              .angle(function(d) {
+                return _this.x(d);
+              })
+              .innerRadius(function(d) {
+                  // ~~ --> round pixels values to optimize svg perfs
+                return ~~_this.y.range()[0];
+              })
+              .outerRadius(function(d) {
+                  // ~~ --> round pixels values to optimize svg perfs
+                return ~~_this.y.range()[1] + 1; //+1px to not clip the very edge
+              })
+              .defined( function(d) {
+                return _this.x(d) || _this.x(d) === 0;
+              })
+              .curve(Px.d3.curveLinearClosed);
+
+        this._clipPathSvg = this._clipPathObj.selectAll("path")
+          .data([this.dimensions])
+          .enter()
+          .append("path");
+
+        //cant do merge because our data is not changing. So always run
+        this._clipPathObj.selectAll("path")
+                         .attr('d', function(d) {
+                            return area(d);
+                          });
       }
-
-      var _this = this,
-          area = Px.d3.radialArea()
-            .angle(function(d) {
-              return _this.x(d);
-            })
-            .innerRadius(function(d) {
-                // ~~ --> round pixels values to optimize svg perfs
-              return ~~_this.y.range()[0];
-            })
-            .outerRadius(function(d) {
-                // ~~ --> round pixels values to optimize svg perfs
-              return ~~_this.y.range()[1] + 1; //+1px to not clip the very edge
-            })
-            .defined( function(d) {
-              return _this.x(d) || _this.x(d) === 0;
-            })
-            .curve(Px.d3.curveLinearClosed);
-
-      this._clipPathSvg = this._clipPathObj.selectAll("path")
-        .data([this.dimensions])
-        .enter()
-        .append("path");
-
-      //cant do merge because our data is not changing. So always run
-      this._clipPathObj.selectAll("path")
-        .attr('d', function(d) {
-          return area(d);
-        });
     }
   });
 </script>

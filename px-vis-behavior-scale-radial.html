@@ -1,9 +1,25 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="../polymer/polymer.html"/>
 <link rel="import" href="px-vis-behavior-common.html" />
 <link rel="import" href="px-vis-behavior-d3.html" />
 
 <script>
-  var PxVisBehaviorScale = PxVisBehaviorScale || {};
+  var PxVisBehaviorScale = window.PxVisBehaviorScale = (window.PxVisBehaviorScale || {});
 
   /*
       Name:
@@ -146,7 +162,7 @@
           this.x = Px.d3.scaleLinear().range([0,1]).domain(domain);
 
           // Set the domains
-          this.set('domainChanged', (this.domainChanged === null) ? true : !this.domainChanged);
+          this.set('domainChanged', this.domainChanged + 1);
         }
       }.bind(this), 10);
     },
@@ -156,7 +172,7 @@
      * returns an object with pixel values and whether the values are
      * currently out of bounds in regards to the current domain
      */
-    getPixelFromData: function(data) {
+    getPixelFromData: function(data, relativeToCenter) {
       var domain = this.y.domain(),
           range = this.y.range(),
           domainTot = domain[1] - domain[0],
@@ -165,8 +181,12 @@
 
       result = this._getPixelCoordForRadialData(data[0], data[1], (range[1]-range[0]), domain, domainTot);
 
-      result[0] += this._center[0];
-      result[1] += this._center[1];
+      if(!relativeToCenter) {
+        //[0,0] is the center of the drawing, adjust to give the top left corner
+        // as [0,0]
+        result[0] += this._center[0];
+        result[1] += this._center[1];
+      }
 
       //do the out of bounds check on pixel values since zoom on radial
       //doesn't update the domain
@@ -209,7 +229,7 @@
     },
 
     _pixelRequest: function(evt) {
-      var res = this.getPixelFromData(evt.detail.data);
+      var res = this.getPixelFromData(evt.detail.data, evt.detail.relativeToCenter);
       evt.detail.callback(res);
     }
   },
@@ -220,7 +240,7 @@
     PxVisBehavior.axisTypes,
     PxVisBehavior.amplitudeExtents,
     PxVisBehaviorD3.radialAxisConfig,
-    PxVisBehaviorD3.domainUpdateNotify,
+    PxVisBehaviorD3.domainUpdate,
     PxVisBehavior.polarData,
     PxVisBehavior.mutedSeries
   ]

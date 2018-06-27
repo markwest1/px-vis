@@ -1,3 +1,20 @@
+/**
+ * @license
+ * Copyright (c) 2018, General Electric
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 // importScripts("px-vis-worker-scale.js");
 
 /*
@@ -120,6 +137,7 @@ function createDataStub() {
     'time': null,
     'timeSeriesKey': null,
     "series" : [],
+    "seriesObj" : {},
     "rawData" : [],
     "timeStamps" : [],
     "timeStampsTracker" : {},
@@ -159,11 +177,11 @@ function flattenData(visData, d, xScale, yScale, index, arr) {
     if(visData.radial) {
 
       var pix = calcPixelCoordForRadial(d[visData.completeSeriesConfig[k]['x']], d[visData.completeSeriesConfig[k]['y']], axis, visData);
-      o['px'] = ~~pix[0];
-      o['py'] = ~~pix[1];
+      o['px'] = Math.floor(pix[0]);
+      o['py'] = Math.floor(pix[1]);
     } else {
-      o['px'] = ~~xScale(d[visData.completeSeriesConfig[k]['x']], axis);
-      o['py'] = ~~yScale(d[visData.completeSeriesConfig[k]['y']], axis);
+      o['px'] = Math.floor(xScale(d[visData.completeSeriesConfig[k]['x']], axis));
+      o['py'] = Math.floor(yScale(d[visData.completeSeriesConfig[k]['y']], axis));
     }
 
     arr.push(o);
@@ -272,7 +290,7 @@ function createSingleQuadtree(data) {
       quadtree;
 
     if(chartData) {
-        quadtree = d3.quadtree()
+      quadtree = d3.quadtree()
         .extent(visData.extents)
         .x(function(d) { return d.px; })
         .y(function(d) { return d.py; });
@@ -486,7 +504,8 @@ function constructDataObj(result, dataObj, k, visData, isSingle, xScale) {
   } else if(isSingle) {
 
     var rawData = this.dataMapping[visData.chartId][result.i];
-    dataObj.series.push(calcDataSingleQuadtree(rawData, k, visData));
+    dataObj.seriesObj[k] = calcDataSingleQuadtree(rawData, k, visData);
+    dataObj.series.push(dataObj.seriesObj[k]);
 
     // if we need to add crosshair data and are not doing all in area...
     // all in area gets calced else where rather than iteratively here
@@ -499,6 +518,7 @@ function constructDataObj(result, dataObj, k, visData, isSingle, xScale) {
         yScale = recreateD3Scale(visData.y[axis]),
         series = calcDataSeriesQuadtree(result, k, xScale, yScale, visData, axis);
 
+    dataObj.seriesObj[k] = series;
     dataObj.series.push(series);
 
     if(visData.timeData) {

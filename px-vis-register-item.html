@@ -1,8 +1,24 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="../polymer/polymer.html"/>
 <link rel="import" href="px-vis-behavior-common.html"/>
 <link rel="import" href="px-vis-behavior-register.html"/>
 <link rel="import" href="px-vis-dynamic-menu.html"/>
-<link rel="import" href="../px-number-formatter/px-number-formatter.html" />
+<link rel="import" href="../px-number-formatter/px-number-formatter-no-display.html" />
 <link rel="import" href="css/px-vis-register-styles.html">
 
 <!--
@@ -26,14 +42,6 @@ Custom property | Description
   `--px-vis-register-series-name` | The color of the data series name
   `--px-vis-register-data-value` | The color of the data series value
   `--px-vis-register-box` | The color of the box around the register when a scrollbar is present
-  |
-  |
-  |
-  `--px-tooltip-background-color` | The color of the tooltip
-  `--px-tooltip-text-color` | The color of the tooltip text
-  `--px-tooltip-light-background-color` | The color of the light version tooltip
-  `--px-tooltip-light-text-color` | The color of the light version tooltip text
-  `--px-tooltip-light-border-color`| The color of the light version tooltip border
 
 @element px-vis-register-item
 @blurb Element providing a series line items on the register for regular charts
@@ -54,78 +62,56 @@ Custom property | Description
         flex-shrink: 0;
       }
     </style>
-    <span
+    <span id="regItem"
       class$="[[_baseClasses]] register-item--min-width"
-      name$="R[[item.name]]"
-      id="regItem">
-      <span
-        class$="flex [[_itemMutedToStart]]"
-        on-tap="_seriesClicked"
-        id="regWithoutMenu">
+      name$="R[[seriesKey]]">
+      <span id="regWithoutMenu" class$="flex [[_itemMutedToStart]]" style="width:100%;">
         <span class="seriesMarker flex">
-          <span
-            class="seriesMarkerIcon"
-            style$="[[_calcDashPattern(_itemColor,_dashPattern)]];"
-            name$="R{{item.name}}">&nbsp;</span>
+          <span class="seriesMarkerIcon"
+            style$="[[_calcDashPattern(_itemColor, _dashPattern, _negativeColor)]];"
+            name$="R[[seriesKey]]">&nbsp;</span>
         </span>
-        <span class$="[[_wrapperClass]]">
-          <div
-            class="seriesName flex__item--msfix"
-            name$="R[[item.name]]">
+        <span class$="[[_wrapperClass]]" style="width:100%;">
+          <div id="seriesName" class="seriesName flex__item--msfix" name$="R[[seriesKey]]">
             [[_truncatedName]]&nbsp;
-            <template is="dom-if" if="[[_didTruncate]]">
-              <px-tooltip delay="500">[[_configName]]</px-tooltip>
-            </template>
           </div>
-          <!-- Display serie data differently depending on x and y axis types -->
           <!-- Use inline flex to avoid the browser adding spaces between our sub elements-->
-          <div class="seriesData flex__item--msfix" name$="R{{item.name}}">
-            <!-- if x axis is number format and show it -->
-            <template is="dom-if" if="[[_checkLinearType(xAxisType)]]" on-dom-change="_xFormatterChanged" strip-whitespace>
-              <px-number-formatter
-                id="xFormatter"
-                class$="[[_ttStyle]]"
-                format="[[numberFormat]]"
-                culture="[[numberFormatCulture]]"
-                currency$="[[numberFormatIsCurrency]]"
-                default-currency-format="[[numberFormatCurrency]]"
-                zero-format="[[numberFormatZero]]">&nbsp;
-              </px-number-formatter>[[_xUnit]][[_slash]]
-            </template>
-            <!-- if x axis is ordinal just display it -->
-            <template is="dom-if" if="[[_isOfType(xAxisType, 'ordinal')]]" on-dom-change="_xSpanChanged" strip-whitespace>
-              <span id="xSpan">[[_itemX]]</span>[[_xUnit]][[_slash]]&nbsp;
-            </template>
-            <!-- if x axis is time don't display it -->
-            <!-- if y axis is number format and show it -->
-              <template is="dom-if" if="[[_checkLinearType(yAxisType)]]" on-dom-change="_yFormatterChanged" strip-whitespace>
-                <px-number-formatter
-                  id="yFormatter"
-                  class$="[[_ttStyle]]"
-                  format="[[numberFormat]]"
-                  culture="[[numberFormatCulture]]"
-                  currency$="[[numberFormatIsCurrency]]"
-                  default-currency-format="[[numberFormatCurrency]]"
-                  zero-format="[[numberFormatZero]]">&nbsp;
-                </px-number-formatter>
-              </template>
-              <!-- if y axis is ordinal just display it -->
-              <template is="dom-if" if="[[_isOfType(yAxisType, 'ordinal')]]" on-dom-change="_ySpanChanged" strip-whitespace>
-                <span id="ySpan">[[_itemY]]</span>
-              </template>[[_yUnit]]
-            </div>
-          </span>
+          <div class="seriesData flex__item--msfix" name$="R[[seriesKey]]">
+            [[_displayedData]]
+          </div>
         </span>
-        <template id="menuTemplate" is="dom-if" if="[[_hasDynamicMenu]]">
-          <px-vis-dynamic-menu
-              id="menu"
-              class$="[[_getDynamicMenuClass(type)]]"
-              style="display: none"
-              additional-detail="[[item]]"
-              dynamic-menu-config="[[dynamicMenuConfig]]">
-          </px-vis-dynamic-menu>
-        </template>
       </span>
+      <template id="menuTemplate" is="dom-if" if="[[_hasDynamicMenu]]">
+        <px-vis-dynamic-menu
+          id="menu"
+          class$="[[_getDynamicMenuClass(type)]]"
+          additional-detail="[[seriesKey]]"
+          dynamic-menu-config="[[dynamicMenuConfig]]">
+        </px-vis-dynamic-menu>
+      </template>
+    </span>
+    <template is="dom-if" if="[[_isOfType(xAxisType, 'linear')]]">
+      <px-number-formatter-no-display
+        id="xFormatter"
+        value="[[_returnValue(data, 'x')]]"
+        format="[[numberFormat]]"
+        culture="[[numberFormatCulture]]"
+        currency$="[[numberFormatIsCurrency]]"
+        default-currency-format="[[numberFormatCurrency]]"
+        zero-format="[[numberFormatZero]]"
+        formatted-value="{{_formattedX}}">
+      </px-number-formatter-no-display>
+    </template>
+    <px-number-formatter-no-display
+      id="yFormatter"
+      value="[[_returnValue(data, 'y')]]"
+      format="[[numberFormat]]"
+      culture="[[numberFormatCulture]]"
+      currency$="[[numberFormatIsCurrency]]"
+      default-currency-format="[[numberFormatCurrency]]"
+      zero-format="[[numberFormatZero]]"
+      formatted-value="{{_formattedY}}">
+    </px-number-formatter-no-display>
   </template>
 </dom-module>
 
@@ -143,125 +129,123 @@ Custom property | Description
       PxVisBehaviorRegister.register,
       PxVisBehaviorRegister.itemShared,
       PxVisBehaviorRegister.generalItem,
-      PxVisBehaviorRegister.disableClick
+      PxVisBehaviorRegister.disableClick,
+      PxVisBehavior.dataChecks,
+      PxVisBehavior.gradientColorsFunction
     ],
     properties: {
-      /**
-       * The units for the x value.
-       */
-      _xUnit: {
-        type: String
+      _formattedX: {
+        type: String,
+        value: ''
       },
-      /**
-       * The units for the y value.
-       */
-      _yUnit: {
-        type: String
+      _formattedY: {
+        type: String,
+        value: ''
       },
-      /**
-       * Calculates the value for x.
-       */
-      _itemX: {
-        type: Number,
-        notify: false
+      _displayedData: {
+        type: String,
+        value: ''
       },
-      _slash: {
-        type: String
+      displayYValuesOnly: {
+        type: Boolean,
+        value: false
       },
-      /**
-       * Calculates the value of y.
-       */
-      _itemY: {
-        type: Number,
-        notify: false
-      },
-      /**
-      * Used to style the px-number-formatter to match the register styling.
-      * Should be 'light' or 'dark'.
-      */
-      _ttStyle: {
-        type: String
+      displayXValuesOnly: {
+        type: Boolean,
+        value: false
       }
     },
 
     observers: [
-      '_toggleSeries(item,mutedSeries.*)',
+      '_toggleSeries(seriesKey, mutedSeries.*)',
       '_disableClickFunc(disableClick)',
-      '_computeItem(item, completeSeriesConfig.*)'
+      '_computeItem(_formattedX, _formattedY)'
     ],
 
-    _xFormatterChanged: function() {
-      this.$.xFormatter = Polymer.dom(this.root).querySelector('#xFormatter');
-      this._computeItem(this.item, this.completeSeriesConfig);
-    },
-    _yFormatterChanged: function() {
-      this.$.yFormatter = Polymer.dom(this.root).querySelector('#yFormatter');
-      this._computeItem(this.item, this.completeSeriesConfig);
-    },
-    _xSpanChanged: function() {
-      this.$.xSpan = Polymer.dom(this.root).querySelector('#xSpan');
-      this._computeItem(this.item, this.completeSeriesConfig);
-    },
-    _ySpanChanged: function() {
-      this.$.ySpan = Polymer.dom(this.root).querySelector('#ySpan');
-      this._computeItem(this.item, this.completeSeriesConfig);
-    },
-
-    _computeItem: function(item, completeSeriesConfig) {
+    _computeItem: function() {
       if(this.hasUndefinedArguments(arguments)) {
         return;
       }
 
-      // this was moved to manual instead of a binding for performance reasons which may or may not legit. One day we should revisit and see if it really matters
       this.debounce("numberFormatterValues", function() {
-        if(this.completeSeriesConfig && this.completeSeriesConfig[item.name]) {
+        if(!this.completeSeriesConfig || !this.completeSeriesConfig[this.seriesKey]) {
+          return;
+        }
 
-          var xKey = this.completeSeriesConfig[item.name]['x'],
-              yKey = this.completeSeriesConfig[item.name]['y'];
+        this._computeItemDebounced();
+      }, 10);
+    },
 
-          //process X val
-          if(item.value && (item.value[xKey] || item.value[xKey] === 0)) {
-            //manually assign value rather than bind because we needs the
-            //perf boost here (this might me called a lot wqhen hovering the
-            //chart and having a lot of different series
-            if(this.$.xFormatter) {
-              this.$.xFormatter.set('value', item.value[xKey]);
-            } else if(this.$.xSpan) {
-              this.$.xSpan.textContent = item.value[xKey];
-            }
-            this.set('_slash', ' / ');
-            this.set('_xUnit', this.completeSeriesConfig[item.name]['xAxisUnit']);
-          } else {
-            if(this.$.xFormatter) {
-              this.$.xFormatter.set('value', null);
-            } else if(this.$.xSpan) {
-              this.$.xSpan.textContent = null;
-            }
-            this.set('_slash', '');
-            this.set('_xUnit', '');
-          }
+    _computeItemDebounced: function() {
+      var xKey = this.completeSeriesConfig[this.seriesKey]['x'],
+          yKey = this.completeSeriesConfig[this.seriesKey]['y'],
+          xVal = '',
+          xUnit = '',
+          slash = '',
+          yVal = '',
+          yUnit = '';
 
-          //process Y val
-          if(item.value && (item.value[yKey] || item.value[yKey] === 0)) {
-            //manually assign value rather than bind because we needs the
-            //perf boost here (this might me called a lot wqhen hovering the
-            //chart and having a lot of different series
-            if(this.$.yFormatter) {
-              this.$.yFormatter.set('value', item.value[yKey]);
-            } else if(this.$.ySpan) {
-              this.$.ySpan.textContent = item.value[yKey];
-            }
-            this.set('_yUnit', this.completeSeriesConfig[item.name]['yAxisUnit']);
-          } else {
-            if(this.$.yFormatter) {
-              this.$.yFormatter.set('value', null);
-            } else if(this.$.ySpan) {
-              this.$.ySpan.textContent = null;
-            }
-            this.set('_yUnit', '');
+
+      if(this.data && this.data.value &&
+          (this.displayYValuesOnly || this._isValidData(this.data.value[xKey])) &&
+          this._isValidData(this.data.value[yKey])) {
+
+        //process X val
+        if(!this.displayYValuesOnly) {
+          switch(this.xAxisType) {
+            case 'time':
+            case 'timeLocal':
+              xVal = '';
+              xUnit = '';
+              slash = '';
+              break;
+
+            case 'ordinal':
+            case 'scaleBand':
+              xVal = this.data.value[xKey];
+              xUnit = this.completeSeriesConfig[this.seriesKey]['xAxisUnit'] ? ' ' + this.completeSeriesConfig[this.seriesKey]['xAxisUnit'] : '';
+              slash = this.displayXValuesOnly ? '' : ' / ';
+              break;
+
+            default:
+              xVal = this._formattedX;
+              xUnit = this.completeSeriesConfig[this.seriesKey]['xAxisUnit'] ? ' ' + this.completeSeriesConfig[this.seriesKey]['xAxisUnit'] : '';
+              slash = this.displayXValuesOnly ? '' : ' / ';
+              break;
           }
         }
-      }, 10);
+
+        //process Y val
+        if(!this.displayXValuesOnly) {
+          switch(this.yAxisType) {
+            case 'ordinal':
+            case 'scaleBand':
+              yVal = this.data.value[yKey];
+              break;
+
+            default:
+              yVal = this._formattedY;
+              break;
+          }
+
+          yUnit = this.completeSeriesConfig[this.seriesKey]['yAxisUnit'] ? ' ' + this.completeSeriesConfig[this.seriesKey]['yAxisUnit'] : '';
+        }
+      }
+
+      var display = this.reverseDisplayOrder ?
+          yVal + yUnit + slash + xVal + xUnit :
+          xVal + xUnit + slash + yVal + yUnit;
+
+      this.set('_displayedData', display);
+    },
+
+    _returnValue: function(d, key) {
+      if(!d || !this.completeSeriesConfig || !d.value ||
+          d.value[this.completeSeriesConfig[this.seriesKey][key]] === undefined) {
+        return null;
+      }
+
+      return d.value[this.completeSeriesConfig[this.seriesKey][key]];
     },
 
     _disableClickFunc: function(disableClick) {
@@ -271,6 +255,8 @@ Custom property | Description
 
       if(disableClick) {
         this.unlisten(this.$.regWithoutMenu, "tap", '_seriesClicked');
+      } else {
+        this.listen(this.$.regWithoutMenu, "tap", '_seriesClicked');
       }
     },
 
@@ -279,18 +265,35 @@ Custom property | Description
      *
      * ex:  'to bottom, red 0px, red 5px, transparent 5px, transparent 10px, [repeat]'
      */
-    _calcDashPattern: function(color, pattern) {
-     if(this.hasUndefinedArguments(arguments)) {
-       return;
-     }
+    _calcDashPattern: function(color, pattern, negative) {
+      if(this.hasUndefinedArguments(arguments)) {
+        return;
+      }
 
       var patternItems = pattern.split(',');
       // FIXME need to find a better way of doing this so it matches the SASS set height...
       // Does the height of hte dash pattern really matter? What happens is it goes to 100 and height is only 25?
       var HEIGHT = 25;
-      if (!patternItems || patternItems.length < 2) {
+      if((!patternItems || patternItems.length < 2) && typeof color !== 'string') {
+
+        //build a gradient on 10 values
+        let gradient = this.createGradientFunction(color),
+            cssString = 'background:linear-gradient(';
+        for(let i=0; i<10; i++) {
+          cssString += gradient(i/10) + ',';
+        }
+
+        //remove last comma
+        cssString = cssString.slice(0, cssString.length -1);
+        cssString += ')';
+        return cssString;
+      }
+      else if((!patternItems || patternItems.length < 2) && !negative) {
         return 'background-color:' + color;
 
+      } else if((!patternItems || patternItems.length < 2) && negative) {
+        return 'background:linear-gradient(' + color + ' 50%,' + negative + ' 50%)';
+      // TODO future case where we can have a pattern and negative color needs to be addressed
       } else {
         var result = 'to bottom';
         var position = 0;

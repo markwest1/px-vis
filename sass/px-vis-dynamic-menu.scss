@@ -1,11 +1,17 @@
 /*
- * Copyright (c) 2014 GE Global Research. All rights reserved.
+ * Copyright (c) 2018, General Electric
  *
- * The copyright to the computer software herein is the property of
- * GE Global Research. The software may be used and/or copied only
- * with the written permission of GE Global Research or in accordance
- * with the terms and conditions stipulated in the agreement/contract
- * under which the software has been supplied.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 //Settings
@@ -18,35 +24,19 @@
 // Base
 @import "px-flexbox-design/_base.flexbox.scss";
 
-@import "px-meta-buttons-design/_meta.buttons.scss";
+$inuit-enable-btn--bare--primary : true;
+$inuit-enable-btn--icon : true;
+@import 'px-buttons-design/_objects.buttons.scss';
 
-:host {
-  animation-duration: 0.5s;
-
+.icon {
+  --iron-icon-stroke-color: var(--px-dynamic-menu-icon-color, #222);
   --iron-icon-width: calculateRem(16px);
   --iron-icon-height: calculateRem(16px);
 }
 
-@keyframes fadeIn {
-  0% {opacity: 0;}
-  100% {opacity: 1;}
-}
-
-@keyframes fadeOut {
-  0% {opacity: 1;}
-  100% {opacity: 0;}
-}
-
-.fadeIn {
-    animation-name: fadeIn
-}
-
-.fadeOut {
-    animation-name: fadeOut
-}
-
-.icon {
-  --iron-icon-stroke-color: var(--px-dynamic-menu-icon-color, #222);
+.menu-icon {
+  --iron-icon-width: calculateRem(22px);
+  --iron-icon-height: calculateRem(22px);
 }
 
 .menu-wrapper {
@@ -81,6 +71,10 @@
 .menu-list {
   padding: 0;
   margin: 0;
+}
+
+.btn.btn--bare--primary.btn--icon {
+  height: calculateRem(16px);
 }
 
 // Trumps

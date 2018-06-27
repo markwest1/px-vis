@@ -1,3 +1,19 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="../polymer/polymer.html"/>
 <link rel="import" href="px-vis-behavior-d3.html" />
 <link rel="import" href="px-vis-behavior-common.html" />
@@ -47,7 +63,6 @@ Unlike most other drawing elements that can use chartData directly, bar requires
 <dom-module id="px-vis-bar-svg">
     <template>
       <style include="px-vis-styles"></style>
-
 
     </template>
 </dom-module>
@@ -113,14 +128,14 @@ Unlike most other drawing elements that can use chartData directly, bar requires
         value: 10
       },
 
-      _iKey: {
-        type: String
-      },
+      _iKey: String,
 
       _keySeriesDict: {
         type: Object,
-        computed: '_computekeySeriesDict(completeSeriesConfig.*)'
+        computed: '_computekeySeriesDict(completeSeriesConfig.*, _funcsWereSet)'
       },
+      _iAxis: String,
+      _dAxis: String,
       _funcsWereSet: {
         type: Number,
         value: 0
@@ -144,18 +159,33 @@ Unlike most other drawing elements that can use chartData directly, bar requires
       },
       seriesKey: {
         type: String
+      },
+
+      highlightBar: {
+        type: String,
+        value: ''
+      },
+
+      barOpacity: {
+        type: Number,
+        value: 1
       }
     },
 
     observers: [
-      'drawElement(svg, y, domainChanged, chartData.*, completeSeriesConfig.*, _keySeriesDict,  preventInitialDrawing, _funcsWereSet)',
+      'drawElement(svg, y, domainChanged, chartData.*, completeSeriesConfig.*, _keySeriesDict, preventInitialDrawing, _funcsWereSet)',
       '_addClipPath(clipPath)',
+      '_muteBars(highlightBar)',
       '_setFuncs(type)'
     ],
 
     detached: function() {
-      if(this._doesD3HaveValues(this.barPath)) {
-        this.barPath.remove();
+      if(this._debouncers.draw) {
+        this._debouncers.draw.cancel()
+      }
+
+      if(this._doesD3HaveValues(this.barRects)) {
+        this.barRects.remove();
       }
       if(this._doesD3HaveValues(this.barGroup)) {
         this.barGroup.remove();
@@ -168,24 +198,15 @@ Unlike most other drawing elements that can use chartData directly, bar requires
      * @method drawElement
      */
     drawElement: function() {
-     if(this.hasUndefinedArguments(arguments)) {
-       return;
-     }
-
+      if(this.hasUndefinedArguments(arguments)) {
+        return;
+      }
 
       if(!this.preventInitialDrawing) {
         //if 0 don't debounce at all
         if(this.drawDebounceTime > 0) {
           this.debounce('draw',function() {
-            if(this._funcsWereSet &&
-                this.domainChanged !== null &&
-                this._doesD3HaveValues(this.svg) &&
-                this.y &&
-                this.chartData.length > 0 &&
-                this._doesObjHaveValues(this.completeSeriesConfig)) {
-
-              this._drawElementDebounced();
-            }
+            this._drawElementDebounced();
           }.bind(this), this.drawDebounceTime);
         } else {
           this._drawElementDebounced();
@@ -194,6 +215,15 @@ Unlike most other drawing elements that can use chartData directly, bar requires
     },
 
     _drawElementDebounced: function() {
+      if(!this._funcsWereSet ||
+            !this.domainChanged ||
+            this._isD3Empty(this.svg) ||
+            !this.y ||
+            this.chartData.length === 0 ||
+            this._isObjEmpty(this.completeSeriesConfig) ||
+            !this._keySeriesDict[this.seriesKey]) {
+        return;
+      }
       // checks to see if the group already exists. If not, create; if so, update
       if(this._isObjEmpty(this.barGroup)) {
         // draw the path
@@ -225,9 +255,12 @@ Unlike most other drawing elements that can use chartData directly, bar requires
         .attr('width', this._returnWidth.bind(this))
         .attr('height', this._returnHeight.bind(this))
         .attr('fill', function(d,i) {
-          var series = this._keySeriesDict[this.seriesKey];
-          return this.completeSeriesConfig[series]['color'];
-        }.bind(this));
+          var series = this._keySeriesDict[this.seriesKey],
+              colorKey = d[0] < 0 || d[1] < 0 ? 'negativeColor': 'color';
+
+          return this.completeSeriesConfig[series][colorKey] ? this.completeSeriesConfig[series][colorKey] : this.completeSeriesConfig[series]['color'];
+        }.bind(this))
+        .attr('opacity', this.barOpacity);
 
       // Make it easy to get our bars again
       this.barRects = this.barGroup.selectAll('rect.series-bar');
@@ -243,19 +276,41 @@ Unlike most other drawing elements that can use chartData directly, bar requires
       }
 
       if(this.type === 'bar') {
-        this._returnX = function(d) { return this.x(d[0]); }
-        this._returnY = function(d) { return this.y(d.data[this._iKey]); }
-        this._returnWidth = function(d) { return this.x(d[1]) - this.x(d[0]); }
-        this._returnHeight = function(d) { return this.y.bandwidth(); }
+        this._returnX = function(d) { return (this.x(d[1]) - this.x(d[0]) < 0) ? this.x(d[1]) : this.x(d[0]); };
+        this._returnY = function(d) { return this.y(d.data[this._iKey]); };
+        this._returnWidth = function(d) { return Math.abs(this.x(d[1]) - this.x(d[0])); };
+        this._returnHeight = function(d) { return this.y.bandwidth(); };
+        this._iAxis = 'y';
+        this._dAxis = 'x';
 
       } else {
-        this._returnX = function(d) { return this.x(d.data[this._iKey]); }
-        this._returnY = function(d) { return this.y(d[1]); }
-        this._returnWidth = function(d) { return this.x.bandwidth(); }
-        this._returnHeight = function(d) { return this.y(d[0]) - this.y(d[1]); }
+        this._returnX = function(d) { return this.x(d.data[this._iKey]); };
+        this._returnY = function(d) { return (this.y(d[0]) - this.y(d[1]) < 0) ? this.y(d[0]) : this.y(d[1]); };
+        this._returnWidth = function(d) { return this.x.bandwidth(); };
+        this._returnHeight = function(d) { return Math.abs(this.y(d[0]) - this.y(d[1])); };
+        this._iAxis = 'x';
+        this._dAxis = 'y';
       }
 
-      this._funcsWereSet += 1;
+      this.set('_funcsWereSet', this._funcsWereSet + 1);
+    },
+
+    _muteBars: function() {
+      if(!this.barRects) {
+        return;
+      }
+
+      if(this.highlightBar === '') {
+        this.barRects.classed('muted', false);
+        return;
+      }
+
+      var iKey = this._iKey,
+          ordVal = this.highlightBar;
+
+      this.barRects.classed('muted', function() {
+        return Px.d3.select(this).data()[0].data[iKey] !== ordVal;
+      });
     },
 
     /**
@@ -272,22 +327,27 @@ Unlike most other drawing elements that can use chartData directly, bar requires
     },
 
     _computekeySeriesDict: function(completeSeriesConfig) {
-      if(this.hasUndefinedArguments(arguments)) {
+      if(this._isObjEmpty(this.completeSeriesConfig) || !this._funcsWereSet) {
         return;
       }
 
-      var keys = Object.keys(this.completeSeriesConfig),
-          dict = {};
+      const dict = {};
+      let key;
 
-      for(var i = 0; i < keys.length; i++) {
-        var k = keys[i],
-            y = this.completeSeriesConfig[k]['y'];
-        dict[y] = k;
+      Object.entries(this.completeSeriesConfig).forEach(([k,v]) => {
+        if(v.type === 'bar') {
+          const y = v[this._dAxis];
+          dict[y] = k;
+          key = k;
+        }
+      });
+
+      if(key) {
+        this._iKey = this.completeSeriesConfig[key][this._iAxis];
+        return dict;
       }
 
-      this._iKey = this.completeSeriesConfig[keys[0]]['x'];
-
-      return dict;
+      return undefined;
     }
   });
 </script>

@@ -1,7 +1,23 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="px-vis-behavior-common.html">
 
 <script>
-var PxVisBehaviorRegister = PxVisBehaviorRegister || {};
+var PxVisBehaviorRegister = window.PxVisBehaviorRegister = (window.PxVisBehaviorRegister || {});
 
 /*
     Name:
@@ -17,12 +33,41 @@ var PxVisBehaviorRegister = PxVisBehaviorRegister || {};
 */
 PxVisBehaviorRegister.groupings = {
   properties: {
-    /**
-     * A holder for a line of the register
-     */
     groupings: {
       type: Number,
       value: 1
+    }
+  }
+};
+
+/*
+    Name:
+    PxVisBehaviorRegister.displayTypes
+
+    Description:
+    Polymer behavior that provides the displayTypes property for px-vis register items.
+
+    Dependencies:
+    - none
+
+    @polymerBehavior PxVisBehaviorRegister.displayTypes
+*/
+PxVisBehaviorRegister.displayTypes = {
+  properties: {
+     displayXValuesOnly: {
+      type: Boolean,
+      value: false
+    },
+
+    displayYValuesOnly: {
+      type: Boolean,
+      value: false
+    },
+
+
+    displayOrdinalValue: {
+      type: Boolean,
+      value: false
     }
   }
 };
@@ -65,22 +110,26 @@ PxVisBehaviorRegister.itemShared = [{
     /**
      * A holder for a line of the register
      */
-    item: {
+    data: {
       type: Object
+    },
+
+    seriesKey: {
+      type: String
     },
     /**
      * Which flex classes get applied to make it side or top
      */
     _wrapperClass: {
       type: String,
-      computed: '_getWrapperClass(item, completeSeriesConfig)'
+      computed: '_getWrapperClass(seriesKey, type)'
     },
     /**
-     * The name of the item
+     * The name of the seriesKey
      */
     _configName: {
       type: String,
-      computed: '_computeConfigName(item, completeSeriesConfig)'
+      computed: '_computeConfigName(seriesKey, completeSeriesConfig)'
     },
     /**
      * The key holdiong the name of the item in the config
@@ -122,48 +171,70 @@ PxVisBehaviorRegister.itemShared = [{
      value: "vertical",
      notify: true
     },
-    _mouseEnterHandler: {
-      type: Function
-    },
-    _mouseLeaveHandler: {
-      type: Function
-    },
+
     _hasDynamicMenu: {
+      type: Boolean,
+      value: false
+    },
+
+    _mouseEnterHandlerBound: Function,
+    _mouseLeaveHandlerBound: Function,
+    _hideAfterTransitionBound: Function,
+    _tooltipTimer: Number,
+    _tooltipRequested: {
       type: Boolean,
       value: false
     }
   },
 
   observers: [
-    '_menuConfigChanged(dynamicMenuConfig)'
+    '_menuConfigChanged(dynamicMenuConfig)',
+    '_setupTruncationTooltipListener(_didTruncate)'
   ],
+
+  created: function() {
+    this._onTitleHoverBound = this._onTitleHover.bind(this);
+    this._onTitleLeaveBound = this._onTitleLeave.bind(this);
+    this._mouseEnterHandlerBound = this._mouseEnterHandler.bind(this);
+    this._mouseLeaveHandlerBound = this._mouseLeaveHandler.bind(this);
+    this._hideAfterTransitionBound = this._hideAfterTransition.bind(this);
+  },
+
   attached: function() {
+    this.addEventListener('mouseenter', this._mouseEnterHandlerBound);
+    this.addEventListener('mouseleave', this._mouseLeaveHandlerBound);
+  },
 
-    this._mouseEnterHandler = function() {
+  detached: function() {
+    this._setupTruncationTooltipListener(false);
+    this.removeEventListener('mouseenter', this._mouseEnterHandlerBound);
+    this.removeEventListener('mouseleave', this._mouseLeaveHandlerBound);
+  },
 
-        if(this._hasDynamicMenu) {
+  _mouseEnterHandler: function() {
+    if(this._hasDynamicMenu) {
 
-          //store a ref to the menu if we don't have it yet
-          if(!this.$.menu) {
-            this.$.menu = this.$$('px-vis-dynamic-menu');
-          }
+      //store a ref to the menu if we don't have it yet
+      if(!this.$.menu) {
+        this.$.menu = this.$$('px-vis-dynamic-menu');
+      }
 
-          this.$.menu.fadeIn();
-        }
-      }.bind(this);
-      this._mouseLeaveHandler = function() {
-        if(this._hasDynamicMenu && this.$.menu) {
-          this.$.menu.fadeOut();
-        }
-      }.bind(this);
+      this.$.menu.classList.remove('hide');
+      this.$.menu.classList.remove('fade');
+    }
+  },
 
-      this.addEventListener('mouseenter', this._mouseEnterHandler);
-      this.addEventListener('mouseleave', this._mouseLeaveHandler);
-    },
-    detached: function() {
-      this.removeEventListener('mouseenter', this._mouseEnterHandler);
-      this.removeEventListener('mouseleave', this._mouseLeaveHandler);
-    },
+  _mouseLeaveHandler: function() {
+    if(this._hasDynamicMenu && this.$.menu) {
+    this.$.menu.addEventListener("transitionend", this._hideAfterTransitionBound);
+      this.$.menu.classList.add('fade');
+    }
+  },
+
+  _hideAfterTransition: function() {
+    this.$.menu.removeEventListener("transitionend", this._hideAfterTransitionBound);
+    this.$.menu.classList.add('hide');
+  },
 
   /**
    * Returns the correct flex type based on the register type
@@ -216,17 +287,12 @@ PxVisBehaviorRegister.itemShared = [{
     return len > 2 && str.length > len ? true : false;
   },
 
-  /**
-   * Tries to draw the SVG to canvas and if that doesnt work, falls back on a failure callback
-   */
   _getConfigName: function() {
 
     if(this.xAxisType === 'pie') {
-      return this.item.y;
+      return this.seriesKey.y;
     } else {
-      if(this.completeSeriesConfig && this.completeSeriesConfig[this.item.name]) {
-        return this.completeSeriesConfig[this.item.name]['name'];
-      }
+      return this.completeSeriesConfig[this.seriesKey] ? this.completeSeriesConfig[this.seriesKey][this.nameKey] : '';
     }
   },
 
@@ -241,14 +307,15 @@ PxVisBehaviorRegister.itemShared = [{
     var baseClasses = (this.type === 'horizontal') ? "series narrow flex flex--row" : "series wide flex flex--row flex--justify";
     return baseClasses;
   },
+
   _getDynamicMenuClass: function(type) {
     if(this.hasUndefinedArguments(arguments)) {
       return;
     }
     if(type === 'vertical') {
-      return 'flex__item--bottom';
+      return 'flex__item--bottom dMenu hide';
     } else {
-      return '';
+      return 'dMenu hide';
     }
   },
 
@@ -258,6 +325,50 @@ PxVisBehaviorRegister.itemShared = [{
     }
 
     this._hasDynamicMenu = this.dynamicMenuConfig && this.dynamicMenuConfig.length > 0;
+  },
+
+  _setupTruncationTooltipListener: function(didTruncate) {
+    if(didTruncate === undefined || !this.$.seriesName) {
+      return;
+    }
+
+    if(didTruncate) {
+      this.$.seriesName.addEventListener('mouseenter', this._onTitleHoverBound);
+      this.$.seriesName.addEventListener('mouseleave', this._onTitleLeaveBound);
+    } else {
+      this.$.seriesName.removeEventListener('mouseenter', this._onTitleHoverBound);
+      this.$.seriesName.removeEventListener('mouseleave', this._onTitleLeaveBound);
+    }
+
+  },
+
+  _onTitleHover: function() {
+    this._tooltipRequested = true;
+    this._tooltipTimer = setTimeout(() => {
+
+      const detail = {
+        origin: this,
+        is: this.is,
+        element: this.$.seriesName,
+        data: [{
+          text: this._configName
+        }]
+      }
+
+      this.dispatchEvent(new CustomEvent('central-tooltip-display-request', { bubbles: true, composed: true, detail: detail }));
+
+      this._tooltipRequested = false;
+
+    }, 500);
+  },
+  _onTitleLeave: function() {
+    if(this._tooltipRequested) {
+      clearTimeout(this._tooltipTimer);
+
+    } else {
+      this.dispatchEvent(new CustomEvent('central-tooltip-cancel-request', { bubbles: true, composed: true, detail: {origin: this } }));
+
+    }
   }
 }, PxVisBehavior.observerCheck, PxVisBehavior.dynamicMenuConfig];
 
@@ -274,32 +385,25 @@ PxVisBehaviorRegister.itemShared = [{
     @polymerBehavior PxVisBehaviorRegister.register
 */
 PxVisBehaviorRegister.register = [{
-  properties: {},
+  properties: {
+    reverseDisplayOrder: {
+      type: Boolean,
+      value: false
+    }
+  },
   /**
    * returns the correct classes for the series based on type
    */
-  _getSeriesWrapperClass: function(type, hozAlign, _hasScrollBar) {
+  _getSeriesWrapperClass: function(type) {
     if(this.hasUndefinedArguments(arguments)) {
       return;
     }
-    var classList = 'flex fullWidth ';
+    var classList = 'flex ';
 
     if(type === 'horizontal') {
       classList += 'flex--row ';
-
-      if(_hasScrollBar || hozAlign === 'left') {
-         classList += 'flex--left ';
-      } else if(hozAlign === 'center') {
-        classList += 'flex--center ';
-      } else if(hozAlign === 'right') {
-        classList += 'flex--right ';
-      } else if(hozAlign === 'justify') {
-        classList += 'flex--justify ';
-      } else if(hozAlign === 'spaced') {
-        classList += 'flex--spaced ';
-      }
     } else {
-      classList += 'flex--col';
+      classList += 'flex--col ';
     }
 
     return classList;
@@ -383,9 +487,8 @@ PxVisBehaviorRegister.datetime = {
      * @property _firstDateTime
      * @type string
     */
-    _firstDateTime:{
-      type:String,
-      notify:true
+    _firstDateTime: {
+      type: String
     },
     /**
      * Holder for the formated second datetime string
@@ -393,9 +496,8 @@ PxVisBehaviorRegister.datetime = {
      * @property _secondDateTime
      * @type string
     */
-    _secondDateTime:{
-      type:String,
-      notify:true
+    _secondDateTime: {
+      type:String
     },
     /**
      * Holder for the formated separator character
@@ -403,9 +505,8 @@ PxVisBehaviorRegister.datetime = {
      * @property _separator
      * @type string
     */
-    _separator:{
-      type:String,
-      notify:true
+    _separator: {
+      type:String
     }
   }
 };
@@ -429,21 +530,32 @@ PxVisBehaviorRegister.generalItem = [{
      */
     _itemMutedToStart: {
       type: String,
-      computed: '_computeItemMutedToStart(item, completeSeriesConfig.*)'
+      computed: '_computeItemMutedToStart(seriesKey)'
+    },
+    /**
+     * Optional color to use for the icon instead of using completeSeriesConfig
+     */
+    iconColor: {
+      type: String,
+      value: null
     },
     /**
      * calcates the color of the item
      */
     _itemColor: {
       type: String,
-      computed: '_computeItemColor(item, completeSeriesConfig.*)'
+      computed: '_computeItemColor(seriesKey, completeSeriesConfig.*, iconColor)'
+    },
+    _negativeColor: {
+      type: String,
+      computed: '_computeNegativeItemColor(seriesKey, completeSeriesConfig.*)'
     },
     /**
      * calculates the dash pattern of the item
      */
     _dashPattern: {
       type: String,
-      computed: '_computeItemDashPattern(item, completeSeriesConfig.*)'
+      computed: '_computeItemDashPattern(seriesKey, completeSeriesConfig)'
     },
     /**
       * Prevents the mute on click behavior
@@ -458,11 +570,11 @@ PxVisBehaviorRegister.generalItem = [{
    * returns if the series should be muted to start
    */
   _computeItemMutedToStart: function() {
-   if(this.hasUndefinedArguments(arguments)) {
-     return;
-   }
+    if(this.hasUndefinedArguments(arguments)) {
+      return;
+    }
 
-    return this._mutedToStart(this.item.name);
+    return this._mutedToStart(this.seriesKey);
   },
 
   /**
@@ -472,16 +584,29 @@ PxVisBehaviorRegister.generalItem = [{
    *
    * `rgb(r,g,b)` return the appropriate rgb values based in the series index
    *
-   * @method _returnItemColor
    * @param {i}
    * @return {rgb}
    */
   _computeItemColor: function() {
-   if(this.hasUndefinedArguments(arguments)) {
-     return;
-   }
+    if(this.hasUndefinedArguments(arguments)) {
+      return;
+    }
 
-    return this.completeSeriesConfig[this.item.name] && this.completeSeriesConfig[this.item.name]['color'] ? this.completeSeriesConfig[this.item.name]['color'] : 'transparent';
+    if(this.iconColor) {
+      return this.iconColor
+    }
+
+    return this.completeSeriesConfig[this.seriesKey] && this.completeSeriesConfig[this.seriesKey]['color'] ? this.completeSeriesConfig[this.seriesKey]['color'] : 'transparent';
+  },
+
+  /**
+   */
+   _computeNegativeItemColor: function() {
+    if(this.hasUndefinedArguments(arguments)) {
+      return;
+    }
+
+    return this.completeSeriesConfig[this.seriesKey] && this.completeSeriesConfig[this.seriesKey]['negativeColor'] ? this.completeSeriesConfig[this.seriesKey]['negativeColor'] : null;
   },
 
   /**
@@ -493,13 +618,13 @@ PxVisBehaviorRegister.generalItem = [{
    * @return {pattern}
    */
   _computeItemDashPattern: function() {
-   if(this.hasUndefinedArguments(arguments)) {
-     return;
-   }
+    if(this.hasUndefinedArguments(arguments)) {
+      return;
+    }
 
-      return this.completeSeriesConfig[this.item.name] && this.completeSeriesConfig[this.item.name]['dashPattern'] ?
-          this.completeSeriesConfig[this.item.name]['dashPattern'] :
-          '';
+    return this.completeSeriesConfig[this.seriesKey] && this.completeSeriesConfig[this.seriesKey]['dashPattern'] ?
+        this.completeSeriesConfig[this.seriesKey]['dashPattern'] :
+        '';
   },
 
     /**
@@ -556,9 +681,12 @@ PxVisBehaviorRegister.generalItem = [{
     if(this.hasUndefinedArguments(arguments)) {
       return;
     }
+
     //if it is a bool, we have something.
-    if(typeof this.mutedSeries[item.name] === 'boolean') {
-      this.toggleClass('muted', this.mutedSeries[item.name], this.$.regWithoutMenu);
+    if(typeof this.mutedSeries[item] === 'boolean') {
+      this.toggleClass('muted', this.mutedSeries[item], this.$.regWithoutMenu);
+    } else {
+      this.toggleClass('muted', false, this.$.regWithoutMenu);
     }
   },
 }, PxVisBehavior.observerCheck, PxVisBehavior.muteUnmuteSeries];

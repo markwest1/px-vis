@@ -1,3 +1,19 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="../polymer/polymer.html"/>
 <link rel="import" href="../px-icon-set/px-icon-set.html"/>
 <link rel="import" href="px-vis-behavior-common.html" />
@@ -83,7 +99,8 @@ Custom property | Description
       PxVisBehavior.updateStylesOverride,
       PxVisBehavior.extentsData,
       PxVisBehavior.brushDomains,
-      PxVisBehavior.timeDomain
+      PxVisBehavior.timeDomain,
+      PxVisBehavior.gradientColorsFunction
     ],
 
     /**
@@ -247,7 +264,8 @@ Custom property | Description
       '_setupActions(actionConfig.*)',
       '_setDragBehavior(cartesianDragBehavior, dragContainerElem)',
       '_drawCursorIconAndGroup(svg, iconType)',
-      '_setBrushStyles(_stylesUpdated)'
+      '_setBrushStyles(_stylesUpdated)',
+      '_computeGradientRange(timeDomain)'
     ],
 
     attached: function() {
@@ -294,7 +312,7 @@ Custom property | Description
 
 
       this.debounce('_axisBrush', function() {
-        if(this.domainChanged !== null && this.svg) {
+        if(this.domainChanged && this.svg) {
 
           var range = this._calcRange();
 
@@ -685,6 +703,7 @@ Custom property | Description
         "time": null,
         "dataset": null,
         'series': [],
+        'seriesObj': {},
         "color": null,
         "tooltipConfig": null
       };
@@ -698,9 +717,9 @@ Custom property | Description
 
     _resetCrosshairData: function() {
       var chD = {
-            'rawData': [],
-            'timeStamps': []
-          }
+        'rawData': [],
+        'timeStamps': []
+      };
 
       // make timeout larger than the debounce on _calcHoverData
       window.setTimeout(function() {
@@ -735,8 +754,10 @@ Custom property | Description
 
       if(this._calcTooltip) {
         ttD = this._createTooltipData(aid, mousePos, result);
-        this.set('tooltipData', ttD);
-        this.fire('px-vis-axis-interaction-space-tooltip-data', ttD);
+        if(ttD) {
+          this.set('tooltipData', ttD);
+          this.fire('px-vis-axis-interaction-space-tooltip-data', ttD);
+        }
       }
 
       if(this._calcCrosshair) {
@@ -764,7 +785,7 @@ Custom property | Description
 
       //figure out the differnce between the data value and our saved value
       // we round our pixels while drawing the line, so should round here too
-      result.distance = Math.abs(~~this.y(d[aid]) - mouseVal);
+      result.distance = Math.abs(Math.floor(this.y(d[aid])) - mouseVal);
 
       // if it is smaller than last time, save the data info
       if(result.distance < result.minDistance) {
@@ -786,12 +807,14 @@ Custom property | Description
      *
      */
     _createTooltipData: function(aid, mousePos, result) {
-      var tooltipData = this._createSingleDataset(aid, mousePos, result.rawData[0]);
+      var tooltipData;
+      if(result.rawData.length) {
+        tooltipData = this._createSingleDataset(aid, mousePos, result.rawData[0]);
+        tooltipData.additionalPoints = [];
 
-      tooltipData.additionalPoints = [];
-
-      for(var i=1; i< result.rawData.length; i++) {
-        tooltipData.additionalPoints.push(this._createSingleDataset(aid, mousePos, result.rawData[i]));
+        for (var i = 1; i < result.rawData.length; i++) {
+          tooltipData.additionalPoints.push(this._createSingleDataset(aid, mousePos, result.rawData[i]));
+        }
       }
 
       return tooltipData;
@@ -806,8 +829,11 @@ Custom property | Description
       //create our fake configuration object
       tooltipConfig[aid] = {};
 
-      //if using categies, use it, otherwise default
-      tooltipConfig[aid]["color"] = this.categoryKey && d[this.categoryKey] && this.completeSeriesConfig[d[this.categoryKey]] ? this.completeSeriesConfig[d[this.categoryKey]]["color"] : this.completeSeriesConfig[this.seriesKey]["color"];
+      //if using categies, use it, otherwise default. Check for gradients.
+      let baseColors = this.categoryKey && d[this.categoryKey] && this.completeSeriesConfig[d[this.categoryKey]] ? this.completeSeriesConfig[d[this.categoryKey]].color : this.completeSeriesConfig[this.seriesKey].color,
+          gradient = this.createGradientFunction(baseColors);
+
+      tooltipConfig[aid].color = gradient(d[this.seriesKey]);
 
       //if title is specified, use it, otherwiuse id
       tooltipConfig[aid]["name"] = this.completeSeriesConfig[aid] && this.completeSeriesConfig[aid]['title'] ? this.completeSeriesConfig[aid]["title"] : aid;
@@ -830,9 +856,12 @@ Custom property | Description
         'series': [
           { 'name': aid, 'value': value }
         ],
+        'seriesObj': {},
         "color": tooltipConfig[aid]["color"],
         "tooltipConfig": tooltipConfig
       };
+
+      data.seriesObj[aid] = {'name': aid, 'value': value };
 
       return data;
     },
@@ -1006,7 +1035,7 @@ Custom property | Description
     },
 
     _showBrushesDebounced: function() {
-      if(this._isD3Empty(this._brushD3) || this.domainChanged === null) {
+      if(this._isD3Empty(this._brushD3) || !this.domainChanged) {
         return;
       }
 
@@ -1047,7 +1076,7 @@ Custom property | Description
 
     _showUnselectedBrushesDebounced: function() {
       if(this._isD3Empty(this._brushD3) ||
-          this.domainChanged === null ||
+          !this.domainChanged ||
           this._isObjEmpty(this.brushActions)) {
         return;
       }

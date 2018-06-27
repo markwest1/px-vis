@@ -1,8 +1,43 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="px-vis-behavior-common.html" />
 <link rel="import" href="px-vis-behavior-d3.html" />
+<link rel="import" href="px-vis-behavior-datetime.html" />
 <link rel="import" href="../iron-resizable-behavior/iron-resizable-behavior.html">
 <script>
-var PxVisBehaviorChart = PxVisBehaviorChart || {};
+var PxVisBehaviorChart = window.PxVisBehaviorChart = (window.PxVisBehaviorChart || {});
+
+/*
+    Name:
+    PxVisBehaviorChart.searchToolbar
+
+    Description:
+    Behavior providing a convenience function for searching for a toolbar in a chart
+    @polymerBehavior PxVisBehaviorChart.searchToolbar
+*/
+PxVisBehaviorChart.searchToolbar = {
+
+  /**
+   * Convenience method for searching for a toolbar in a chart.
+   */
+  getToolbar: function() {
+    return this.$$('px-vis-toolbar');
+  }
+};
 
 /*
     Name:
@@ -35,7 +70,7 @@ PxVisBehaviorChart.chartCommonMethods = [{
     }
     return Object.keys(o)
   },
-}, PxColorsBehavior.getSeriesColors];
+}, PxColorsBehavior.getSeriesColors, PxVisBehaviorChart.searchToolbar];
 
 /*
     Name:
@@ -77,7 +112,9 @@ PxVisBehaviorChart.chartCommon = [{
       *         "xMax": 100,  //maximum x value
       *         "yMin": 5,  //minimum y value
       *         "yMax": 50,  //maximum y value
-      *         "color": "rgb(0,0,0)", //color you want the chart
+      *         "hideInRegister": true, //dont show in the register
+      *         "color": "rgb(0,0,0)", //color you want for the series
+      *         "negativeColor": "rgb(255,255,255)", //color you want negative values of the series to be (not all charts)
       *         "interpolationFunction": Px.d3.curveBasis, //The line interpretor you want to use. See property 'interpolationFunction'
       *         "axis": {
       *             "id": "AXIS_ID"   //a unique identifier
@@ -167,7 +204,7 @@ PxVisBehaviorChart.chartCommon = [{
     * Calcs the extents of the charts
     */
     _calcChartExts: function(mins,maxes,axis) {
-      if(this[axis + 'AxisType'] === 'ordinal') {
+      if(this._isOrdinalType(this[axis + 'AxisType'])) {
         return [];
       }
       //make sure we have at lease one valid number
@@ -229,7 +266,7 @@ PxVisBehaviorChart.chartCommon = [{
           if(!fullConfig[k[i]]['name']) {
             fullConfig[k[i]]['name'] = k[i];
           }
-          if(!fullConfig[k[i]]['color']) {
+          if(!fullConfig[k[i]]['color'] && !this._dontCalcColors) {
             fullConfig[k[i]]['color'] = this._getColor(i);
           }
 
@@ -281,7 +318,9 @@ PxVisBehaviorChart.chartCommon = [{
           objYs[ missingYs[i] ]['name'] = missingYs[i];
           objYs[ missingYs[i] ]['x'] = x;
           objYs[ missingYs[i] ]['y'] = missingYs[i];
-          objYs[ missingYs[i] ]['color'] = this._getColor(kLen + i);
+          if(!this._dontCalcColors) {
+            objYs[ missingYs[i] ]['color'] = this._getColor(kLen + i);
+          }
 
           // copy the obj to our config
           fullConfig[ missingYs[i] ] = objYs[ missingYs[i] ];
@@ -442,16 +481,18 @@ PxVisBehaviorChart.chartCommon = [{
       }
 
       this.notifyPath('_defaultSeriesConfig');
-    },
-
-    _returnStrokeWidth: function(seriesId, config) {
-      if(this.hasUndefinedArguments(arguments)) {
-        return;
-      }
-      return config[seriesId]["strokeWidth"] ? config[seriesId]["strokeWidth"] : 1;
     }
 
-}, PxVisBehavior.observerCheck, PxColorsBehavior.dataVisColors , PxVisBehaviorChart.chartCommonMethods, PxVisBehavior.commonMethods, PxVisBehavior.completeSeriesConfig, PxVisBehavior.axisTypes, PxVisBehavior.muteUnmuteSeries];
+},
+  PxVisBehavior.observerCheck,
+  PxColorsBehavior.dataVisColors ,
+  PxVisBehaviorChart.chartCommonMethods,
+  PxVisBehavior.commonMethods,
+  PxVisBehavior.completeSeriesConfig,
+  PxVisBehavior.axisTypes,
+  PxVisBehavior.muteUnmuteSeries,
+  PxVisBehavior.scaleTypeCheck
+];
 
 
 /*
@@ -748,7 +789,10 @@ PxVisBehaviorChart.saveImage = [{
     PxVisBehaviorChart.chartAutoResize
 
     Description:
-    Polymer behavior that provides auto resize options for charts
+    Polymer behavior that provides auto resize options for charts. Charts
+    implementing this behavior can define a `_resizeCalculations` function
+    which will be called when the chart needs to redo its size calculations
+    (typically measure its parents and adjust its height/width)
 
     Dependencies:
     - D3.js
@@ -807,7 +851,7 @@ PxVisBehaviorChart.chartAutoResize = [{
         value: 250
       }
     },
-    listeners: {'px-vis-toolbar-secondary-toggled': '_secondaryToolbarToggled'},
+    listeners: {'iron-resize': '_onIronResize'},
     _preventResizeChanged: function() {
      if(this.hasUndefinedArguments(arguments)) {
        return;
@@ -815,15 +859,6 @@ PxVisBehaviorChart.chartAutoResize = [{
 
       if(!this.preventResize) {
         this.notifyResize();
-      }
-    },
-    _secondaryToolbarToggled: function(e) {
-      if(!this.preventResize && !e.detail.withinChart) {
-        //ensure we bypass the debounce as we want to resize asap
-        var oldDebounce = this.debounceResizeTiming;
-        this.debounceResizeTiming = 0;
-        this.notifyResize();
-        this.debounceResizeTiming = oldDebounce;
       }
     },
     _getChartWrapperClass: function(hor, vert) {
@@ -850,6 +885,16 @@ PxVisBehaviorChart.chartAutoResize = [{
       }
 
       return base;
+    },
+
+    _onIronResize: function() {
+      if(this.preventResize) {
+        return;
+      }
+
+      this.debounce('ironresize', () => {
+        requestAnimationFrame(this._resizeCalculations.bind(this));
+      }, this.debounceResizeTiming);
     }
 }, PxVisBehavior.observerCheck, Polymer.IronResizableBehavior];
 
@@ -922,6 +967,17 @@ PxVisBehaviorChart.timeFiltering = [{
     }
   },
 
+  observers: [
+    '_setTimeKey(timeData)'
+  ],
+
+  _setTimeKey: function() {
+    if(this.timeData) {
+      //harmonise key referencing time across charts
+      this.set('timeKey', this.timeData);
+    }
+  },
+
   /**
    * returns a filtered dataset based on the time domain
    */
@@ -929,7 +985,6 @@ PxVisBehaviorChart.timeFiltering = [{
    if(this.hasUndefinedArguments(arguments)) {
      return;
    }
-
 
     if(timeDomain.x && timeDomain.x.length === 2) {
       var min = Number(timeDomain.x[0]),
@@ -2201,8 +2256,8 @@ PxVisBehaviorChart.multiAxis = [{
     },
 
     _axisDomainChanged: {
-      type: Boolean,
-      value: null
+      type: Number,
+      value: 0
     },
 
     _multiAxisSeriesConfig: {
@@ -2279,12 +2334,13 @@ PxVisBehaviorChart.multiAxis = [{
       this.set('numRightAxes', rDims.length);
 
       this.set('axes', lDims.concat(rDims));
+		// need to set this before setting dimensions because the dimensions observer calls this for multi-axis
+		this.set('_axisX', this._setAxisScale(lDims.sort(), rDims.sort(), this.leftAxisSize, this.rightAxisSize));
       this.set('dimensions', this.axes);
       this.set('seriesToAxes', seriesToAxes);
-      this.set('_axisX', this._setAxisScale(lDims.sort(), rDims.sort(), this.leftAxisSize, this.rightAxisSize));
 
       if(typeof this._axisX === 'function') {
-        this.set('_axisDomainChanged', !this._axisDomainChanged);
+        this.set('_axisDomainChanged', this._axisDomainChanged + 1);
       }
 
       // must decouple completeSeriesConfig from px-vis-multi-axis for timing reasons. Needs to set after dimensions
@@ -2308,7 +2364,7 @@ PxVisBehaviorChart.multiAxis = [{
 
 
   _returnYScale: function(seriesId, config) {
-    if(this.domainChanged !== null) {
+    if(this.domainChanged) {
       if(typeof this.y === 'object') {
         var d = config[seriesId]['axis']['id'];
         if(this.y && this.y[d]) {
@@ -2321,6 +2377,102 @@ PxVisBehaviorChart.multiAxis = [{
     return;
   }
 }, PxVisBehavior.dimensions, PxVisBehavior.seriesToAxes];
+
+/*
+    Name:
+    PxVisBehaviorChart.sizeVerticalRegister
+
+    Description:
+    Behavior providing the ability to size the height of a vertical register
+    @polymerBehavior PxVisBehaviorChart.sizeVerticalRegister
+*/
+PxVisBehaviorChart.sizeVerticalRegister = [{
+
+properties: {
+  /**
+  * the calculated height that can be used by the vertical register
+  *
+  */
+  _verticalRegisterHeight: {
+    type: Number
+  },
+  /**
+   * The register height based on its type, config and calculated size
+   */
+  _registerHeight: {
+    type: Number,
+    computed: '_computeRegisterHeight(_verticalRegisterHeight, registerConfig.*)'
+  },
+    /**
+    * When calculating the register height if the height deductions to do
+    * haven't been passed in (i.e height changed rather than ironResize being called)
+    * then this list of string will be used to search for elements IDs and calculate
+    * their height, deducting them
+    */
+    _verticalRegisterHeightDeductions: {
+      type: Array
+    },
+    /**
+     * ID of the element where the drawing happens. used to get its height property
+     */
+    _verticalRegisterDrawingCanvasId: {
+      type: String
+    }
+  },
+  observers: [
+    '_heightChanged(height, _verticalRegisterDrawingCanvasId, _verticalRegisterHeightDeductions)'
+  ],
+  ready:function() {
+      this.set('_verticalRegisterHeight', this.height);
+  },
+  _heightChanged: function() {
+   if(this.hasUndefinedArguments(arguments)) {
+     return;
+   }
+
+    this._computeVerticalRegisterHeight();
+  },
+  _computeVerticalRegisterHeight: function(deductions) {
+
+    this.debounce('_computeVerticalRegisterHeight', function() {
+
+      var deductionsTotal = 0;
+      if(!deductions) {
+        if(this._verticalRegisterHeightDeductions && this._verticalRegisterHeightDeductions.length) {
+
+          window.requestAnimationFrame(() => {
+            //try to get each eleme we want to add
+            for(var i=0; i<this._verticalRegisterHeightDeductions.length; i++) {
+              var el = this.$$('#' + this._verticalRegisterHeightDeductions[i]);
+
+              //if we found the item get its height
+              if(el) {
+                deductionsTotal += el.getBoundingClientRect().height;
+              }
+            }
+
+            this.set('_verticalRegisterHeight', Math.max(Number(this.$[this._verticalRegisterDrawingCanvasId].height) + deductionsTotal, 0));
+          });
+        }
+      } else {
+        //just add all deductions
+        for(var i=0; i<deductions.length; i++) {
+          deductionsTotal += deductions[i];
+        }
+        this.set('_verticalRegisterHeight', Math.max(Number(this.$[this._verticalRegisterDrawingCanvasId].height) + deductionsTotal, 0));
+      }
+    }.bind(this), 5);
+  },
+
+  _computeRegisterHeight: function() {
+    if(this.registerConfig && this.registerConfig.type === 'horizontal') {
+      return this.registerConfig.height ? this.registerConfig.height : '';
+    }
+
+    return this._verticalRegisterHeight;
+  }
+}, PxVisBehavior.observerCheck, PxVisBehavior.baseSize];
+
 
 /*
     Name:
@@ -2347,14 +2499,15 @@ PxVisBehaviorChart.axisRegister = [{
       type: Object
     }
   },
-  observers: ['_computedAxisRegisterConf(axes, completeSeriesConfig)'],
+
+  observers: ['_computedAxisRegisterConf(axes, completeSeriesConfig, hideAxisRegister)'],
 
   /**
   *
   * configures the register config and empty data series
   */
   _computedAxisRegisterConf: function(axes, completeSeriesConfig) {
-   if(this.hasUndefinedArguments(arguments)) {
+   if(this.hasUndefinedArguments(arguments) || this.hideAxisRegister) {
      return;
    }
 
@@ -2365,6 +2518,7 @@ PxVisBehaviorChart.axisRegister = [{
         tooltipData = {};
 
     tooltipData.series = [];
+    tooltipData.seriesObj = {};
 
     for(var i=0; i<axes.length; i++) {
       configTitle = completeSeriesConfig[axes[i]] ? completeSeriesConfig[axes[i]].title : axes[i];
@@ -2376,6 +2530,7 @@ PxVisBehaviorChart.axisRegister = [{
       };
 
       tooltipData.series.push({ 'name': axes[i]});
+      tooltipData.seriesObj[axes[i]] = {};
     }
 
     this.set('_axisRegisterConfig', axisConfig);
@@ -2390,18 +2545,15 @@ PxVisBehaviorChart.axisRegister = [{
       return false;
     }
 
-    if(data1.series.length !== data2.series.length) {
+    if(data1.series && data2.series && data1.series.length !== data2.series.length) {
       return false;
     }
 
-    var same = true;
-    data1.series.forEach(function(element) {
-      if(data2.series.indexOf(element) === -1) {
-        same = false;
-      }
-    }, this);
+    if(JSON.stringify(data1.seriesObj) === JSON.stringify(data2.seriesObj)) {
+      return true;
+    }
 
-    return same;
+    return false;
   },
 
   /**
@@ -2414,7 +2566,9 @@ PxVisBehaviorChart.axisRegister = [{
       //rebuild object from scratch to avoid Polymer dirty check
       var copy = {};
       copy.series = [];
+      copy.seriesObj = {};
       copy.time = time || null;
+      copy.dataset = values;
 
       for(var i=0; i<this._axisRegisterTooltipData.series.length; i++) {
         var newSeries = {},
@@ -2431,25 +2585,19 @@ PxVisBehaviorChart.axisRegister = [{
         }
 
         copy.series.push(newSeries);
+        copy.seriesObj[name] = newSeries;
       }
 
       this.set('_axisRegisterTooltipData', copy);
-    }
-  },
-  _updateAxisConfig: function(color) {
-    var copy = this._axisRegisterConfig,
-        keys = Object.keys(this._axisRegisterConfig);
+    } else {
 
-    for(var i=0; i<keys.length; i++) {
-      if(color) {
-        copy[keys[i]].color = color;
-      } else {
-        delete copy[keys[i]].color;
+      //make sure we still update it in case something else is looking for it
+      if(!this._axisRegisterTooltipData) {
+        this._axisRegisterTooltipData = {};
       }
-    }
 
-    this._axisRegisterConfig = copy;
-    this.notifyPath('_axisRegisterConfig');
+      this.set('_axisRegisterTooltipData.dataset', values ? values : null);
+    }
   }
 }, PxVisBehavior.observerCheck, PxVisBehavior.dimensions, PxVisBehavior.completeSeriesConfig, PxVisBehaviorChart.mutedAxes, PxVisBehaviorChart.getHideClass];
 
@@ -2483,12 +2631,12 @@ PxVisBehaviorChart.categoryRegister = [{
     }
   },
   observers: [
-    '_computeCategoryRegisterConfig(categoryKey, completeSeriesConfig, categories)',
+    '_computeCategoryRegisterConfig(categoryKey, completeSeriesConfig, categories, _hideCategoryRegister)',
     '_computeHideCategoryRegister(hideCategoryRegister, categoryKey)'
   ],
 
   _computeCategoryRegisterConfig: function() {
-    if(this.hasUndefinedArguments(arguments)) {
+    if(this.hasUndefinedArguments(arguments) || this._hideCategoryRegister) {
       return;
     }
 
@@ -2497,7 +2645,8 @@ PxVisBehaviorChart.categoryRegister = [{
           config = {},
           currentCat,
           catName;
-      tooltipData.series = [];
+      tooltipData.series = [],
+      tooltipData.seriesObj = {};
 
       for(var i = 0; i < this.categories.length; i ++) {
 
@@ -2520,7 +2669,8 @@ PxVisBehaviorChart.categoryRegister = [{
           };
         }
 
-        tooltipData.series.push({"name": currentCat})
+        tooltipData.series.push({"name": currentCat});
+        tooltipData.seriesObj[currentCat] = {};
       }
 
       //set our confs
@@ -2587,80 +2737,119 @@ PxVisBehaviorChart.categoryAndAxisRegisterConfigs = [{
 
 /*
     Name:
-    PxVisBehaviorChart.sizeVerticalRegister
+    PxVisBehaviorChart.registerPagnationBase
 
     Description:
-    Behavior providing the ability to size the height of a vertical register
-    @polymerBehavior PxVisBehaviorChart.sizeVerticalRegister
+    Behavior providing the register pagnation properties and methods
+    @polymerBehavior PxVisBehaviorChart.registerPagnationBase
 */
-PxVisBehaviorChart.sizeVerticalRegister = [{
+PxVisBehaviorChart.registerPagnationBase = {
 
   properties: {
-    /**
-    * the calculated height that should be used by the vertical register
-    *
-    */
-    _verticalRegisterHeight: {
-      type: Number
+    _currentPage: {
+      type: Number,
+      value: 0
     },
-    /**
-    * When calculating the register height if the height deductions to do
-    * haven't been passed in (i.e height changed rather than ironResize being called)
-    * then this list of string will be used to search for elements IDs and calculate
-    * their height, deducting them
-    */
-    _verticalRegisterHeightDeductions: {
-      type: Array
+
+    _registerCurrentPage: {
+      type: Number,
+      value: 1
     },
-    /**
-     * ID of the element where the drawing happens. used to get its height property
-     */
-    _verticalRegisterDrawingCanvasId: {
-      type: String
+
+    _registerTotalPages: {
+      type: Number,
+      value: 1
+    },
+
+    _registerDisplayPageArrows: {
+      type: Boolean,
+      value: false
     }
   },
-  observers: [
-    '_heightChanged(height)'
-  ],
-  ready:function() {
-      this.set('_verticalRegisterHeight', this.height);
+
+  ready: function() {
+    this.addEventListener('px-vis-register-page-change', this._changePage.bind(this));
   },
-  _heightChanged: function() {
-   if(this.hasUndefinedArguments(arguments)) {
-     return;
-   }
 
-    this._computeVerticalRegisterHeight();
+  _changePage: function(evt) {
+    this._currentPage += evt.detail.direction;
+
+    if(this._currentPage < 0) {
+      this._currentPage = this.tooltipData.additionalPoints.length;
+    } else if(this._currentPage > this.tooltipData.additionalPoints.length) {
+      this._currentPage = 0;
+    }
+
+    this.set('_registerCurrentPage', this._currentPage + 1);
+    this._updateRegisterData();
   },
-  _computeVerticalRegisterHeight: function(deductions) {
 
-    this.debounce('_computeVerticalRegisterHeight', function() {
+  _resetPages: function() {
+    this._currentPage = 0;
+    this.set('_registerCurrentPage', 1);
 
-      var deductionsTotal = 0;
-      if(!deductions) {
-        if(this._verticalRegisterHeightDeductions && this._verticalRegisterHeightDeductions.length) {
+    if(this.tooltipData.additionalPoints && this.tooltipData.additionalPoints.length) {
+      this.set('_registerDisplayPageArrows', true);
+      this.set('_registerTotalPages', this.tooltipData.additionalPoints.length + 1);
+    } else {
+      this.set('_registerDisplayPageArrows', false);
+      this.set('_registerTotalPages', 1);
+    }
+  }
+};
 
-          //try to get each eleme we want to add
-          for(var i=0; i<this._verticalRegisterHeightDeductions.length; i++) {
-            var el = this.$$('#' + this._verticalRegisterHeightDeductions[i]);
+/*
+    Name:
+    PxVisBehaviorChart.registerPagnation
 
-            //if we found the item get its height
-            if(el) {
-              deductionsTotal += el.getBoundingClientRect().height;
-            }
-          }
-        }
-      } else {
-        //just add all deductions
-        for(var i=0; i<deductions.length; i++) {
-          deductionsTotal += deductions[i];
-        }
-      }
-
-      this.set('_verticalRegisterHeight', Math.max(Number(this.$[this._verticalRegisterDrawingCanvasId].height) + deductionsTotal, 0));
-    }.bind(this), 5);
+    Description:
+    Behavior providing the register pagnation properties and methods
+    @polymerBehavior PxVisBehaviorChart.registerPagnation
+*/
+PxVisBehaviorChart.registerPagnation = [{
+  properties: {
+    _registerTooltipData: {
+      type: Object
+    }
   },
-}, PxVisBehavior.observerCheck, PxVisBehavior.baseSize];
+
+  _tooltipDataUpdated: function() {
+    this._resetPages();
+
+    this.set('_registerTooltipData', this.tooltipData);
+
+  },
+
+  _updateRegisterData: function() {
+    if(this._currentPage === 0) {
+      this.set('_registerTooltipData', this.tooltipData);
+    } else {
+      this.set('_registerTooltipData', this.tooltipData.additionalPoints[this._currentPage - 1]);
+    }
+  }
+}, PxVisBehaviorChart.registerPagnationBase];
+
+/*
+    Name:
+    PxVisBehaviorChart.registerPagnationMultiAxis
+
+    Description:
+    Behavior providing the register pagnation properties and methods
+    @polymerBehavior PxVisBehaviorChart.registerPagnationMultiAxis
+*/
+PxVisBehaviorChart.registerPagnationMultiAxis = [{
+  _updateRegisterData: function() {
+    if(this._currentPage === 0) {
+      this._buildAxisTooltipData(this.tooltipData.dataset, this.tooltipData.time);
+      this.set('_axisRegisterIconColor', this.tooltipData.color);
+    } else {
+      this._buildAxisTooltipData(
+        this.tooltipData.additionalPoints[this._currentPage - 1].dataset, this.tooltipData.additionalPoints[this._currentPage - 1].time
+      );
+      this.set('_axisRegisterIconColor', this.tooltipData.additionalPoints[this._currentPage - 1].color);
+    }
+  }
+}, PxVisBehaviorChart.registerPagnationBase];
 
 /*
     Name:
@@ -3100,5 +3289,229 @@ PxVisBehaviorChart.tooltipSizing = [{
   }
 },
 PxVisBehaviorChart.showTooltip];
+
+
+/*
+    Name:
+    PxVisBehaviorChart.centralTooltip
+
+    Description:
+    Behavior providing properties and methods to show and hide a centralized tooltip
+
+    @polymerBehavior PxVisBehaviorChart.centralTooltip
+*/
+PxVisBehaviorChart.centralTooltip = [{
+  properties: {
+    /**
+     * Whether the tooltip should be shown or hidden
+     */
+     tooltipRequested: {
+      type: Boolean,
+      value: false
+    },
+    /**
+     * Specifies the orientation of the event tooltip.
+     *
+     * @property tooltipOrientation
+     * @type String
+     */
+      tooltipOrientation: {
+      type: String,
+      value: 'left'
+    },
+
+    /**
+     * List of keys & values used for translating this component.
+     */
+      resources: {
+      type: Object,
+      value: function() {
+        return {
+          'en': {
+            'Event': 'Event',
+            'ID': 'ID',
+            'Timestamp': 'Timestamp',
+            'X': 'X'
+          }
+        };
+      }
+    },
+
+    /**
+    * Use the key for localization if value for language is missing.
+    * Should always be true for Predix components.
+    */
+    useKeyIfMissing: {
+      type: Boolean,
+      value: true
+    },
+
+    /**
+     * A valid IETF language tag as a string that will be
+     * used to localize this component.
+     *
+     * See https://github.com/PolymerElements/app-localize-behavior for API
+     * documentation and more information.
+     */
+    language: {
+      type: String,
+      value: 'en'
+    },
+    /**
+    * Use the key for localization if value for language is missing.
+    * Should always be true for Predix components.
+    */
+    useKeyIfMissing: {
+      type: Boolean,
+      value: true
+    },
+
+    _availableTooltips: {
+      type: Array,
+      value: () => { return []; }
+    },
+
+    _usedTooltipMap: {
+      type: Map,
+      value: () => { return new Map(); }
+    },
+
+    _lockedTooltips: {
+      type: Set,
+      value: () => { return new Set(); }
+    }
+  },
+
+  listeners: {
+    'central-tooltip-display-request': '_centralTooltipDisplayRequest',
+    'central-tooltip-cancel-request': '_centralTooltipCancelRequest',
+    'central-tooltip-lock-request': '_centralTooltipLockRequest',
+    'central-tooltip-lock-cancel': '_centralTooltipLockCancel'
+  },
+
+  observers: [
+    '_updateTooltipProps(tooltipOrientation, resources, useKeyIfMissing, language, firstDateTimeFormat, secondDateTimeFormat, separator, timezone)'
+  ],
+
+  ready: function() {
+    this._availableTooltips.push(this.$.centralTooltip);
+  },
+
+  _getTooltipToUse: function() {
+    // look for first available tooltip
+    for(var i=0; i<this._availableTooltips.length; i++) {
+      if(!this._lockedTooltips.has(this._availableTooltips[i])){
+        return this._availableTooltips[i];
+      }
+    }
+
+    return this._createTooltip();
+  },
+
+  _createTooltip: function() {
+    const copy = this._availableTooltips[0].cloneNode(true);
+
+    copy.setAttribute('id', `centralTooltip${this._availableTooltips.length}`);
+
+    this._availableTooltips.push(copy);
+    this.appendChild(copy);
+
+    return copy;
+  },
+
+  _centralTooltipDisplayRequest: function(evt) {
+    const tooltip = this._getTooltipToUse();
+    const content = tooltip.querySelector('px-vis-central-tooltip-content');
+
+    this._usedTooltipMap.set(evt.detail.origin, tooltip);
+
+    if(evt.detail.element) {
+      tooltip.set('for', evt.detail.element);
+    }
+
+    if(evt.detail.mouseCoords) {
+      tooltip.set('followMouse', true);
+      tooltip.set('mouseCoords', evt.detail.mouseCoords);
+    }
+
+    if(evt.detail.orientation) {
+      tooltip.set('orientation', evt.detail.orientation);
+    }
+
+    if(evt.detail.data) {
+      content.set('tooltipDataResult', evt.detail.data);
+    }
+
+    tooltip.set('opened', true);
+
+    evt.preventDefault();
+    evt.stopPropagation();
+  },
+
+  _centralTooltipCancelRequest: function(evt) {
+    const tooltip = this._usedTooltipMap.get(evt.detail.origin);
+    const content = tooltip.querySelector('px-vis-central-tooltip-content');
+
+    tooltip.set('opened', false);
+
+    tooltip.set('for', undefined);
+    tooltip.set('followMouse', false);
+    tooltip.set('mouseCoords', undefined);
+
+    content.set('tooltipDataResult', []);
+
+    this._usedTooltipMap.delete(evt.detail.origin);
+
+    evt.preventDefault();
+    evt.stopPropagation();
+  },
+
+  _centralTooltipLockRequest: function(evt) {
+    const tooltip = this._usedTooltipMap.get(evt.detail.origin);
+    this._lockedTooltips.add(tooltip);
+
+    evt.preventDefault();
+    evt.stopPropagation();
+  },
+
+  _centralTooltipLockCancel: function(evt) {
+    this._lockedTooltips.delete(evt.detail.origin);
+
+    evt.preventDefault();
+    evt.stopPropagation();
+  },
+
+  _resizeTooltip: function() {
+    // if the content changes, we need to resize to make sure
+    // stuff fits / is aligned
+    this.$.tooltip.setPosition();
+  },
+
+  _updateTooltipProps: function() {
+    if(this.hasUndefinedArguments(arguments)) {
+      return;
+    }
+
+    // base tooltip is data bound
+    if(this._availableTooltips.length === 1) {
+      return;
+    }
+
+    for(var i=1; i<this._availableTooltips.length; i++) {
+      this._availableTooltips[i].set('tooltipOrientation', this.tooltipOrientation);
+
+      const content = this._availableTooltips[i].querySelector('px-vis-central-tooltip-content');
+      content.set('resources', this.resources);
+      content.set('useKeyIfMissing', this.useKeyIfMissing);
+      content.set('language', this.language);
+      content.set('firstDateTimeFormat', this.firstDateTimeFormat);
+      content.set('secondDateTimeFormat', this.secondDateTimeFormat);
+      content.set('separator', this.separator);
+      content.set('timezone', this.timezone);
+    }
+  }
+
+
+}, PxVisBehaviorTime.datetime];
 
 </script>

@@ -1,3 +1,19 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="../polymer/polymer.html"/>
 <link rel="import" href="px-vis-behavior-common.html" />
 <link rel="import" href="px-vis-behavior-d3.html" />
@@ -30,7 +46,6 @@
         nav-series-limit="[[navSeriesLimit]]"
         chart-domain-x="[[chartDomainX]]"
         chart-domain-y="[[chartDomainY]]"
-        range="[[range]]"
         disable-empty-render
         selected-domain="{{selectedDomain}}">
     </px-vis-chart-navigator>
@@ -43,9 +58,7 @@ Custom property | Description
   `--px-vis-nav-brush-outline-color` | The stroke (border) color for the brushed box
   `--px-vis-nav-brush-fill-color` | The fill (background) color for the brushed box
   `--px-vis-nav-brush-opacity` | The opacity of the brushed box
-  `--px-vis-nav-brush-gradient-fill-color` | The fill (background) color for the brushed box when gradientOverlay is 'true'
-  `--px-vis-nav-brush-gradient-opacity-1` | The start opacity of the brushed box when gradientOverlay is 'true'
-  `--px-vis-nav-brush-gradient-opacity-2` | The end opacity of the brushed box when gradientOverlay is 'true'
+  `--px-vis-nav-brush-gradient-fill-color` | The fill (background) color for the brushed box when gradientColors is not defined
   `--px-vis-nav-brush-handle-fill-color` | The fill (background) color for the handles on the brushed box
   `--px-vis-nav-brush-handle-lines-color` | The stroke (border) color for the handles on the brushed box
   `--px-vis-nav-brush-handle-fill-color-hover` | The hover state fill (background) color for the handles on the brushed box
@@ -182,9 +195,9 @@ Custom property | Description
           width="[[width]]"
           margin="[[margin]]"
           domain-changed="[[domainChanged]]"
-          chart-domain=[[chartDomainX]]
+          chart-domain="[[chartDomainX]]"
           selected-domain="{{selectedDomain}}"
-          gradient-overlay="[[gradientOverlay]]">
+          gradient-colors="[[gradientColors]]">
         </px-vis-brush>
       </div>
     </template>
@@ -225,7 +238,8 @@ Custom property | Description
           PxVisBehaviorChart.webWorkerSynchronization,
           PxVisBehaviorD3.clipPath,
           PxVisBehaviorRenderer.base,
-          PxVisBehavior.mutedSeries
+          PxVisBehavior.mutedSeries,
+          PxVisBehavior.gradientColorsProperty
         ],
 
         /**
@@ -260,38 +274,6 @@ Custom property | Description
           chartDomainY: {
             type:Array,
             notify:true
-          },
-          /**
-           * Boolean specifying if the rectangular overlay should have a gradient applied
-           *
-           */
-          gradientOverlay: {
-            type: Boolean,
-            value: false
-          },
-          /**
-           * Can be set to override the time span shown by the navigator. Allows use of
-           * the navigator without data.
-           *
-           * * Format ISO8601 strings
-           * ```
-           * {
-           *    "from": "2013-01-07T22:44:30.652Z",
-           *    "to" : "2013-02-04T22:44:30.652Z"
-           * }
-           * ```
-           *
-           */
-          range: {
-            type: Object,
-            observer: '_rangeChanged'
-          },
-          /**
-           * Boolean specifying if the navigator should be allowed to render empty or not
-           */
-          disableEmptyRender: {
-            type: Boolean,
-            value: false
           },
           /**
           * Developer set chart extents for the chart. The chart will draw to whatever values are specified in the chartExtents.
@@ -338,7 +320,7 @@ Custom property | Description
 
         attached: function() {
           this.set('numberOfLayers', 3);
-          this._onIronResize();
+          //this._onIronResize();
         },
 
 
@@ -380,78 +362,6 @@ Custom property | Description
               this.set('height', wrapperRect.height);
             }
           },100);
-        },
-
-        /**
-         * Sets the range when the values in rangepicker changes
-         */
-        _rangeChanged: function() {
-         if(this.hasUndefinedArguments(arguments)) {
-           return;
-         }
-
-          var newXRange = [
-            Number(Px.moment(this.range.from, Px.moment.ISO_8601).format('x')),
-            Number(Px.moment(this.range.to, Px.moment.ISO_8601).format('x'))
-            // Px.moment(this.range.from),Px.moment(this.range.to)
-          ];
-
-          //if we don't have data create 'empty' data with new range
-          if(!this.disableEmptyRender && (!this.chartData || this.chartData.length === 0)) {
-
-            if(!this.seriesConfig || !this._doesObjHaveValues(this.seriesConfig)) {
-              this.set('seriesConfig', {
-               dummy: {
-                  "type": "line",
-                  "name": "dummy",
-                  "x":"x",
-                  "y":"y"
-                }
-              });
-            }
-
-            this._updateDummyData(newXRange);
-
-            this.set('dataExtents', {
-              "x":newXRange,
-              "y":[Infinity,-Infinity]});
-
-          } else if(this._doesObjHaveValues(this.dataExtents) && this._doesObjHaveValues(this.dataExtents.x) && this._doesObjHaveValues(this.dataExtents.y)) {
-            if(!this.disableEmptyRender) {
-              var config = this.seriesConfig[Object.keys(this.seriesConfig)[0]];
-              //if we're using dummy data make sure it reflects the new range
-              if(this.chartData.length === 2 && this.chartData[0][config.y] === 0 &&
-                this.chartData[1][config.y] === 0) {
-                this._updateDummyData(newXRange);
-              }
-            }
-            //set range in the data
-            this.set('dataExtents', {
-              "x": newXRange,
-              "y": [this.dataExtents.y[0],this.dataExtents.y[1]]
-            });
-
-            var newDomain = {
-              'x': [newXRange[0], newXRange[1]],
-              'y': this.selectedDomain.y
-            };
-            this.set('selectedDomain', newDomain);
-          }
-        },
-
-        /**
-         * Creates some dummy data for initial use
-         */
-        _updateDummyData: function(newXRange) {
-          var config = this.seriesConfig[Object.keys(this.seriesConfig)[0]],
-            newData1 = {},
-            newData2 = {};
-
-            newData1[config.x] = newXRange[0];
-            newData1[config.y] = 0;
-            newData2[config.x] = newXRange[1];
-            newData2[config.y] = 0;
-            this.set('chartData', [newData1, newData2]);
         }
     });
 </script>

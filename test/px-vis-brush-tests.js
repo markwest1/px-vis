@@ -1,3 +1,20 @@
+/**
+ * @license
+ * Copyright (c) 2018, General Electric
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 document.addEventListener("WebComponentsReady", function() {
   runTests();
 });
@@ -459,8 +476,8 @@ function runTests(){
       gradientScale.set('chartData',d);
 
       gradientBrush.set('height',h);
+      gradientBrush.set('gradientColors', ['red','blue']);
 
-      // window.setTimeout(function(){done()},5000);
       done();
     });
 
@@ -501,32 +518,37 @@ function runTests(){
     });
     test('linearGradient stops are created', function() {
       var stops = gradientBrush.svg.select('defs').select('#overlayGradient').selectAll('stop').nodes();
-      assert.equal(stops.length, 2);
-      assert.equal(stops[0].tagName, 'stop');
-      assert.equal(stops[1].tagName, 'stop');
+      assert.equal(stops.length, 101);
     });
     test('linearGradient stop[0] is correct', function() {
       var stop = d3.select(gradientBrush.svg.select('defs').select('#overlayGradient').selectAll('stop').nodes()[0]),
           stopColor = stop.attr('stop-color').split(" ").join('');
       assert.equal(stop.attr('offset'), '0%');
       if(stopColor[0] === 'r') {
-        assert.equal(stopColor, colors['gray10']);
+        assert.equal(stopColor, 'rgb(255,0,0)');
       } else {
-        assert.equal(stopColor, rgbToHex(colors['gray10']));
+        assert.equal(stopColor, rgbToHex('rgb(255,0,0)'));
       }
-
-      assert.equal(stop.attr('stop-opacity'), 0.1);
     });
-    test('linearGradient stop[1] is correct', function() {
-      var stop = d3.select(gradientBrush.svg.select('defs').select('#overlayGradient').selectAll('stop').nodes()[1]),
+    test('linearGradient stop[49] is correct', function() {
+      var stop = d3.select(gradientBrush.svg.select('defs').select('#overlayGradient').selectAll('stop').nodes()[49]),
+          stopColor = stop.attr('stop-color').split(" ").join('');
+      assert.equal(stop.attr('offset'), '49%');
+      if(stopColor[0] === 'r') {
+        assert.equal(stopColor, 'rgb(130,0,125)');
+      } else {
+        assert.equal(stopColor, rgbToHex('rgb(130,0,125)'));
+      }
+    });
+    test('linearGradient stop[100] is correct', function() {
+      var stop = d3.select(gradientBrush.svg.select('defs').select('#overlayGradient').selectAll('stop').nodes()[100]),
           stopColor = stop.attr('stop-color').split(" ").join('');
       assert.equal(stop.attr('offset'), '100%');
       if(stopColor[0] === 'r') {
-        assert.equal(stopColor, colors['gray10']);
+        assert.equal(stopColor, 'rgb(0,0,255)');
       } else {
-        assert.equal(stopColor, rgbToHex(colors['gray10']));
+        assert.equal(stopColor, rgbToHex('rgb(0,0,255)'));
       }
-      assert.equal(stop.attr('stop-opacity'), 0.8);
     });
   });
 } //runTests

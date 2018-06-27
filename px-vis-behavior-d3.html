@@ -1,3 +1,19 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="../px-d3-imports/px-d3-imports.html" />
 <link rel="import" href="px-vis-imports.html" />
 <link rel="import" href="px-vis-behavior-common.html" />
@@ -5,7 +21,7 @@
 <link rel="import" href="../iron-meta/iron-meta.html">
 <script>
 
-var PxVisBehaviorD3 = PxVisBehaviorD3 || {};
+var PxVisBehaviorD3 = window.PxVisBehaviorD3 = (window.PxVisBehaviorD3 || {});
 
 /*
     Name:
@@ -428,7 +444,7 @@ PxVisBehaviorD3.axes = [{
      * @type Function
      */
     x: {
-      type: Object,
+      type: Function,
       notify:true
     },
     /**
@@ -500,46 +516,19 @@ PxVisBehaviorD3.axes = [{
 PxVisBehaviorD3.domainUpdate = {
   properties: {
     /**
-     * Boolean switching when the domain(s) has(have) changed
+     * Number which increments up when the domain(s) has(have) changed.
      *
-     * Serves as a trigger for many elements to redraw
+     * 0 (false) indicates that domains have not been set.
      *
-     * @property domainChanged
-     * @type Object
-     */
-    domainChanged: {
-      type: Boolean,
-      value: null
-    }
-  }
-};
-
-/*
-    Name:
-    PxVisBehaviorD3.domainUpdateNotify
-
-    Description:
-    Polymer behavior that provides domain update property
-
-    Dependencies:
-    - D3.js
-
-    @polymerBehavior PxVisBehaviorD3.domainUpdateNotify
-*/
-PxVisBehaviorD3.domainUpdateNotify = {
-  properties: {
-    /**
-     * Boolean switching when the domain(s) has(have) changed
-     *
-     * Serves as a trigger for many elements to redraw
+     * Serves as a trigger for many elements to redraw.
      *
      * @property domainChanged
-     * @type Object
+     * @type Number
      */
     domainChanged: {
-      type: Boolean,
+      type: Number,
       notify: true,
-      value: null
+      value: 0
     }
   }
 };
@@ -1004,14 +993,16 @@ PxVisBehaviorD3.axisConfig = [{
       value: 1
     },
     /**
-     * Defines the axis outerTickSize. Default is to hide them
+     * Defines the axis tickSizeOuter. Default is to hide them
      *
      * See: https://github.com/d3/d3-axis#axis_tickSizeOuter
      */
-    outerTickSize: {
+     tickSizeOuter: {
       type: Number,
       value: 0
     },
+    tickSizeInner: Number,
+    tickPadding: Number,
     /**
      * Defines the what values the axis should use
      *
@@ -1034,17 +1025,62 @@ PxVisBehaviorD3.axisConfig = [{
      *         "format": String or d3 object,
      *    }
      * ```
-     * @type {Object|Number}
+     * @type {Object|Number|Function}
      *
      */
     ticks: {
       type: Object
     },
     /**
+    * A string that specifies the format of the ticks
+    *
+    * https://github.com/d3/d3-format
+    *
+    * https://github.com/d3/d3-time-format
+    *
+    * @type {String|Function}
+    *
+    */
+    tickFormat: {
+      type: String
+    },
+    /**
      * Defines the color for axis lines, ticks, labels, and title
      *
      */
     axisColor: {
+      type: String,
+      value: ""
+    },
+    /**
+     * Defines the color for axis lines (overrides axisColor)
+     *
+     */
+     axisLineColor: {
+      type: String,
+      value: ""
+    },
+    /**
+     * Defines the color for axis ticks (overrides axisColor)
+     *
+     */
+     axisTickColor: {
+      type: String,
+      value: ""
+    },
+    /**
+     * Defines the color for axis labels (overrides axisColor)
+     *
+     */
+     axisLabelColor: {
+      type: String,
+      value: ""
+    },
+    /**
+     * Defines the color for axis title (overrides axisColor)
+     *
+     */
+     axisTitleColor: {
       type: String,
       value: ""
     },
@@ -1297,8 +1333,8 @@ PxVisBehaviorD3.radialLineGenerator = [{
         return _this.x(d[0]) * clockwiseFactor;
       })
       .radius(function(d) {
-        // ~~ --> round pixels values to optimize svg perfs
-        var radius = ~~_this.y(Number(d[1]));
+
+        var radius = Math.floor(_this.y(Number(d[1])));
 
         if(typeof _this.lineRadiusLimit === 'number' && radius < _this.lineRadiusLimit) {
           return _this.lineRadiusLimit;
@@ -1429,14 +1465,6 @@ PxVisBehaviorD3.lineShared = [{
       value: false
     },
     /**
-    * Calculated range values for the gradient scale
-    *
-    */
-    gradientRange: {
-      type: Array,
-      computed: '_computeGradientRange(chartData.*,timeDomain.*,seriesId)'
-    },
-    /**
     * Gets and saves the rgb so we can make an rgba to apply to the line
     *
     */
@@ -1467,37 +1495,30 @@ PxVisBehaviorD3.lineShared = [{
     }
   },
 
+  observers: [
+    '_computeGradientRange(timeDomain)'
+  ],
+
   _resetRenderingContext: function() {
     this._currentDrawingOptions.lastPointRenderedIndex = null;
     this._currentDrawingOptions.currentBatchStartIndex = 0;
   },
 
-  _computeColorArr: function(categories,completeSeriesConfig,seriesId){
+  _computeColorArr: function(categories, completeSeriesConfig, seriesId){
     if(this.hasUndefinedArguments(arguments)) {
       return;
     }
 
-    //start with the RGB value and split it
-    var c = completeSeriesConfig[seriesId]['color'].split('(')[1].split(','),
-        colors = {};
+    var colors = {};
 
     //save each color individually for use later
-    colors[seriesId] = {
-      "r": Number(c[0]),
-      "g": Number(c[1]),
-      "b": Number(c[2].split(')')[0])
-    };
+    colors[seriesId] = this.createGradientFunction(completeSeriesConfig[seriesId].color);
 
     // if coloring by category
     if(categories.length > 0) {
       for(var i = 0; i < categories.length; i++) {
         if(completeSeriesConfig[categories[i]]) {
-          c = completeSeriesConfig[categories[i]]['color'].split('(')[1].split(',');
-          colors[categories[i]] = {
-            "r": Number(c[0]),
-            "g": Number(c[1]),
-            "b": Number(c[2].split(')')[0])
-          };
+          colors[categories[i]] = this.createGradientFunction(completeSeriesConfig[categories[i]].color);
         }
       }
     }
@@ -1506,40 +1527,17 @@ PxVisBehaviorD3.lineShared = [{
   },
 
   /**
-   * Returns the correct opacity to use for all lines.
-   *
+   * Returns the correct color to use for the line.
    */
-  _opacityLine:function(d) {
-    // calulate the percentage through the dataset
-    var n = (this.gradientRange[1] - d[this.seriesId]) / (this.gradientRange[1] - this.gradientRange[0]);
-    // scale the gradient by that resulting in a gradient from 20% - 100%
-    return 1 - n * 0.8;
-  },
-
-  /**
-   * Computes the data range.
-   *
-   */
-  _computeGradientRange: function(chartData, timeDomain,seriesId) {
-   if(this.hasUndefinedArguments(arguments)) {
-     return;
-   }
-
-    if(chartData.value.length > 0) {
-      var x1,x2;
-      if(timeDomain.value && timeDomain.value.x && timeDomain.value.x.length > 0) {
-        x1 = Number(timeDomain.value.x[0]);
-        x2 = Number(timeDomain.value.x[1]);
-      } else {
-        x1 = Number(chartData.value[0][seriesId]);
-        x2 = Number(chartData.value[chartData.value.length - 1][seriesId]);
-      }
-      return [x1,x2];
+    _getLineColor:function(data) {
+    // figure out if we are using a category or the seriesID
+    var key = this.categoryKey ? data[this.categoryKey] : this.seriesId;
+    // check that we want to draw that category
+    if(this._colorArr[key]) {
+      // return the appropriate rgba
+      return this._colorArr[key](data[this.seriesId]);
     }
-  },
-
-  _removeGaps: function(data) {
-
+    return null;
   },
 
   /**
@@ -1555,13 +1553,13 @@ PxVisBehaviorD3.lineShared = [{
 
     if(this.showGaps) {
       line = Px.d3.line()
-        .x(function(d) {
-          // ~~ --> round pixels values to optimize svg perfs
-
-          return ~~_this.x(d[xKey]);
+        .x(function(d, i) {
+          // round pixels values to optimize svg perfs
+          return Math.floor(_this.x(d[xKey]));
         })
         .y(function(d) {
-          return ~~_this.y(d[yKey]);
+
+          return Math.floor(_this.y(d[yKey]));
         })
         .defined(function(d,i) {
           return _this._isValidData(d[yKey]);
@@ -1570,21 +1568,21 @@ PxVisBehaviorD3.lineShared = [{
       line = Px.d3.line()
         .x(function(d,i) {
           if((d[xKey] || d[xKey] === 0) && (d[yKey] || d[yKey] === 0)) {
-            return ~~_this.x(d[xKey]);
+            return Math.floor(_this.x(d[xKey]));
           } else if(!renderToCanvas) {
 
             //svg needs to have a point defined where canvas will just ignore this point if no value
-            return ~~_this.x(_this.chartData[_this._currentDrawingOptions.lastPointRenderedIndex][xKey]);
+            return Math.floor(_this.x(_this.chartData[_this._currentDrawingOptions.lastPointRenderedIndex][xKey]));
           }
         })
         .y(function(d,i) {
           if((d[xKey] || d[xKey] === 0) && (d[yKey] || d[yKey] === 0 )) {
             _this._currentDrawingOptions.lastPointRenderedIndex = _this._currentDrawingOptions.currentBatchStartIndex + i;
-            return ~~_this.y(d[yKey]);
+            return Math.floor(_this.y(d[yKey]));
           } else if(!renderToCanvas) {
 
             //svg needs to have a point defined where canvas will just ignore this point if no value
-            return ~~_this.y(_this.chartData[_this._currentDrawingOptions.lastPointRenderedIndex][yKey]);
+            return Math.floor(_this.y(_this.chartData[_this._currentDrawingOptions.lastPointRenderedIndex][yKey]));
           }
         })
         .defined(function(d,i) {
@@ -1626,11 +1624,11 @@ PxVisBehaviorD3.lineShared = [{
           //for each datapoint, iterate through the dimensions
           return path(dims.map(function(p) {
             //check that we have data; if not, return false so it doesnt draw a line
-            if(!d || (!d[p] && d[p] !== 0)) {
+            if(!d || (!d[p] && d[p] !== 0 || !this.y[p])) {
               return false
             }
             //return [x,y] to path: x is ordinal based on dim; get the y-scale for the dim and use that particular scale on the data
-            return [~~this.x(p), ~~this.y[p](d[p])];
+            return [Math.floor(this.x(p)), Math.floor(this.y[p](d[p]))];
           }.bind(this)));
         }.bind(this);
 
@@ -1647,7 +1645,14 @@ PxVisBehaviorD3.lineShared = [{
 
     this.set('line',line);
   }
-}, PxVisBehavior.observerCheck,PxVisBehaviorD3.radialLineGenerator, PxVisBehavior.seriesId, PxVisBehaviorD3.lineGaps, PxVisBehaviorD3.interpolationFunction, PxVisBehavior.timeDomain];
+},
+PxVisBehavior.observerCheck,
+PxVisBehaviorD3.radialLineGenerator,
+PxVisBehavior.seriesId,
+PxVisBehaviorD3.lineGaps,
+PxVisBehaviorD3.interpolationFunction,
+PxVisBehavior.timeDomain,
+PxVisBehavior.gradientColorsFunction];
 
 /*
     Name:
@@ -1932,15 +1937,15 @@ PxVisBehaviorD3.icons = {
     window.addEventListener('iron-iconset-added',this._iconsLoadedBound);
   },
 
-  _getIcon: function(iconName, targetSize, defaultKey, defaultName) {
-    var split = iconName.split(':'),
-        key = split[0] && split[1] ? split[0] : defaultKey,
+  _getPxIcon: function(iconName, targetSize, defaultKey, defaultName) {
+    const split = iconName.split(':');
+    let key = split[0] && split[1] ? split[0] : defaultKey,
         name = split[0] && split[1] ? split[1] : defaultName,
         iconSet = this._meta.byKey(key),
         icon;
 
     if(!iconSet) {
-      console.warn("Cant find set named: " + key + ". Waiting for set to load...");
+      console.warn(`Cant find set named: ${key}. Waiting for set to load...`);
       this._debugIconWarning = true;
       this._waitForIconsLoaded();
       return null;
@@ -1948,20 +1953,25 @@ PxVisBehaviorD3.icons = {
 
     if(this._debugIconWarning) {
       this._debugIconWarning = false;
-      console.warn("Set " + key + " successfully loaded");
+      console.warn(`Set ${key} successfully loaded`);
     }
 
-    icon = Polymer.dom(iconSet).querySelector('[id="' + name + '"]');
+    icon = Polymer.dom(iconSet).querySelector(`[id="${name}"]`);
 
     if(!icon) {
-      console.warn("Cant find icon named: " + this._thisConfig.icon);
-      icon = Polymer.dom(iconSet).querySelector('[id="' + defaultName + '"]');
+      console.warn(`Cant find icon named: ${name}`);
+      icon = Polymer.dom(iconSet).querySelector(`[id="${defaultName}"]`);
     }
 
     this._iconSize = iconSet.size;
-    this._iconScale = this._calcIconScale(this._iconSize, targetSize);
+    const iconScale = this._calcIconScale(this._iconSize, targetSize);
+    const copy = icon.cloneNode(true);
 
-    return icon.cloneNode(true);
+    return {
+      icon: copy,
+      size: iconSet.size,
+      scale: iconScale
+    };
   },
 
   _calcIconScale: function(size, targetSize) {
@@ -1999,13 +2009,16 @@ PxVisBehaviorD3.cursorIcon = [{
       this._icon.remove();
     }
 
-    var icon = this._getIcon(this.iconType, 12, 'px-utl', 'information');
+    var icon = this._getPxIcon(this.iconType, 12, 'px-utl', 'information');
 
     if(!icon) {
       return;
     }
 
-    this._icon = Px.d3.select(this._cursorGroup.node().appendChild(icon))
+    this._iconSize = icon.size;
+    this._iconScale = icon.scale;
+
+    this._icon = Px.d3.select(this._cursorGroup.node().appendChild(icon.icon))
       .attr('fill', 'transparent')
       .attr('stroke', this._checkThemeVariable("--px-vis-cursor-line-color", 'rgb(0,0,0)'))
       .attr('pointer-events', 'none');

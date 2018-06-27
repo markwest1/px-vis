@@ -1,3 +1,148 @@
+v5.1.2
+===================
+* More strict mode fixes
+
+v5.1.1
+===================
+* Ensure vis respects strict mode
+
+v5.1.0
+===================
+* Add options to timeseries lasso for y and freeform lasso types
+
+v5.0.4
+===================
+* Fix for https://github.com/predixdesignsystem/px-vis-timeseries/issues/84
+* Fix for register alignment
+
+v5.0.3
+===================
+* Ensure gradient values are normalized when using a custom gradient function
+
+v5.0.2
+===================
+* Delete reference to file "px-vis-markers-tooltip-content.html" that no longer exists
+
+v5.0.1
+===================
+* Make register config name setter more robust in some specific timing situations
+
+v5.0.0
+===================
+* Added tooltipData.seriesObj property
+* Register Changes:
+  * item: Simplified register data construction into a single string instead of multiple props
+  * item: Replaces number formatter with the no display version
+  * Changed scrollBarsPresent observer so it only fires on a renderedItemCount change instead of dom-change
+  * Unified pie and regular to both use scrollBarsPresent
+  * Now uses tooltipData.seriesObj and completeSeriesConfig keys to construct register
+    * completeSeriesConfig now has a `hideInRegister` option to prevent a series from showing in the register
+    * pagnation to view additionalPoints
+  * Sorting of register is now supported
+    * Functionally similar to toolbar; app dev should provide `sortConfig` property on the register
+    * `sortConfig` specifies desired sort types and provides a button/menu for users to change the sort order
+    * Built in sort types, `default`, `muted`, and `name` can be specified with a boolean
+    * Custom sort types can be specifed with an object
+    * Sorting can be specified without the button via `sortType` property
+  * Added pagnation display and interaction properties
+  * Added reverseDisplayOrder property so the register can be instructed to display `y / x` instead of `x / y`
+  * Added `displayXValuesOnly` & `displayYValuesOnly` to only display x or y data from tooltipData
+  * Added two tone option for series icon to also display `negativeColor` when applicable
+* Misc fixes and refactoring:
+  * cursor
+* Dyanmic Menu changes:
+  * Normalized sizing of icons in dynamic menu
+  * Allow customization of menu icon in dynamic menu
+  * Removed neon animation from dynamic menu.
+  * Removed fadeIn and fadeOut methods and classes
+  * Created classes on register and refactored listeners to handle showing/hiding dynamic menu
+    * Relies on CSS transitions now instead of animations
+* Changed the way tooltipData is created throughout to accomodate new seriesObj
+* Changed the way charts handle tooltipData to allow for pagination
+* Added general method for checking for ordinal and time types.
+  * Upgraded various ordinal checks to also check for scaleBand.
+* Ordinal type scale changes in scale-behavior:
+  * Added startFromZero option to scale
+  * Added invert function to ordinal scales
+  * Added scalePadding property on scale behavior to allow you to set the padding for ordinal type scales
+* Refactored time search in interaction space to optimize perf
+* New grouped bar component to provide grouped bars for a bar and column chart
+  * seriesConfig can now have a `negativeColor` property to specify a different color for negative bar values. `color` will still be used for positive values
+* Thresholds now have a `type` property and can be shown on the x-axis
+* Added a reference curve component which accepts `referenceData` and `referenceConfig` to create a reference curve with a colored line and text
+* Added `titleOffset` to px-vis-axis to allow you to offset the title from the default position
+* Prefix all behaviors and window objects with `window`
+* Upgrade to d3 v5
+* Changed names for outerTickSize to tickSizeOuter to match d3.
+* Added tickSizeInner to change tickSize on axis
+* Added tickPadding on axis
+* Added PxVisBehaviorChart.searchToolbar to PxVisBehaviorChart.chartCommon, adding a `getToolbar` method for all charts
+* Toolbar changes:
+  * Any toolbar item can now have a `hidden` property to show/hide the item
+  * Any toolbar item can now have a `disabled` property
+  * added a `onSelect` handler for items. `onClick` now won't be called when the item is programmatically selected (as opposed to being selected by a click). `onSelect` will be called in both cases (like `onClick` used to behave).
+  * Not a toolbar change per say but any custom event handler defined in `actionConfig` can access the toolbar by calling `getToolbar` on the chart (which is usually `this` in the handler).
+  * In a similar way handlers for `onClick`, `onSelect` and `onDeselect` have direct access to the toolbar through `e.toolbar`.
+  * when using preconfigured toolbar options keys with a value of `false` will be ignored, e.g : {zoom: true, pan: false} will only show zoom button
+  * Adding a `switchConfigItems` convenience function for switching two toolbar items
+* Added `px-vis-cell-canvas`
+* Event changes (BREAKING):
+  * Event now draws all events in the supplied data, not just one
+  * Removed `xKey` property and instead rely on `dataKey` supplied in the config
+  * Made defaul `dataKey` = 'time' instead of 'x' which was the default for `xKey`
+  * Event no longer directly displays a tooltip. Instead, it fires an event up and will rely on the chart to display the tooltip with the supplied information
+* Marker changes (BREAKING):
+  * Marker no longer directly displays a tooltip. Instead, it fires an event up and will rely on the chart to display the tooltip with the supplied information
+* Register changes (BREAKING):
+  * No longer directly displays a tooltip. Instead, it fires an event up and will rely on the chart to display the tooltip with the supplied information
+* Axis changes (BREAKING):
+  * No longer directly displays a tooltip. Instead, it fires an event up and will rely on the chart to display the tooltip with the supplied information
+* Toolbar changes (BREAKING):
+  * `onClick` definition in the config has been replaced by `onSelect`
+  * Config definitions now have a 'click' defined by default. Custom configurations must now nullify this 'click' handler (if you dont use click).
+  * No longer directly displays a tooltip. Instead, it fires an event up and will rely on the chart to display the tooltip with the supplied information
+* px-vis-marker-tooltip-content changes (BREAKING):
+  * Renamed to px-vis-central-tooltip-content
+  * Drastically modifed to generalize component and better disconnection from markers
+* Misc BREAKING:
+  * `range` property has been removed from px-vis-chart-navigator. use `chartExtents.x` to control the timespan. The chart navigator does not support being used without data anymore
+  * horizontal registers do not support custom alignment anymore and will use all available width
+  * domainChanged is now a Number with initial value of 0. This toggling and checking if it hasnt been toggled easier.
+  * PxVisBehaviorD3.domainUpdateNotify has been removed. PxVisBehaviorD3.domainUpdate once again has `notify: true`.
+  * remove `_checkColorType` from PxVisBehavior.commonMethods
+  * changed `PxVisBehaviorD3.icons._getIcon` to `PxVisBehaviorD3.icons._getPxIcon`
+  * changed `PxVisBehaviorD3.icons._getPxIcon` to return an object with the icon, size, and scale instead of returning an icon and setting two props for size and scale
+  * `px-vis-brush` and `px-vis-chart-navigator` don't use opacity for gradients but colors instead. As such the `gradientOverlay` property has been replaced byt the `gradientColors` property which can be:
+    * A single color (string)
+    * An array of colors (creating a linear gradient from those colors)
+    * A custom function defining a gradient by returning a color for an input between 0 and 1.
+* Added PxVisBehaviorChart.searchToolbar to PxVisBehaviorChart.chartCommon, adding a `getToolbar` method for all charts
+
+v4.7.11
+=================
+* Ensure binary search compares by number
+
+v4.7.10
+=================
+* Fix wrong d3-import version
+
+v4.7.9
+=================
+* Use Math.floor instead of ~~ for flooring pixel values to avoid problems for big values
+
+v4.7.8
+=================
+* Remove number formatter default culture to avoid overriding of culture on element creation
+
+v4.7.7
+=================
+* Fixed bug where tooltip search on timeseries with prevent web worker would not return the timestamp
+
+v4.7.6
+=================
+* Fix bug in canvas line rendering with show gaps on
+
+
 v4.7.5
 =================
 * Fix bug in events where default config gets no color (and also draw fn may never get called)
@@ -250,8 +395,6 @@ v4.0.0
 * Fix for switching between svg and canvas at runtime
 * BREAKING CHANGE: default orientation in orientation definition is now `left` instead of `bottom`
 
-=======
->>>>>>> Stashed changes
 v3.1.23
 ================
 * delete empty line above some behaviors definition that would prevent them from showing up in the API

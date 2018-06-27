@@ -1,3 +1,19 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <script>
   (function() {
     if(typeof window.Px === 'undefined') {
@@ -12,7 +28,7 @@
           chart,
           util = {};
 
-      initialize = function(chartToProcess) {
+      var initialize = function(chartToProcess) {
         chart = chartToProcess;
         isParaRadar = chart.nodeName === 'PX-VIS-PARALLEL-COORDINATES' || chart.nodeName === 'PX-VIS-RADAR';
       }
@@ -20,7 +36,7 @@
       /**********************************************************
        *  UTILITY
        **********************************************************/
-      _debugObjectHasKeys = function(obj, toFind) {
+      var _debugObjectHasKeys = function(obj, toFind) {
         var result = {
               hasKeys: false,
               otherKeys: []
@@ -49,7 +65,7 @@
         return result;
       };
 
-      _debugGetTimeKey = function() {
+      var _debugGetTimeKey = function() {
 
         var timeKey;
 
@@ -64,7 +80,7 @@
         return timeKey;
       };
 
-      _debugGetSeriesKeys = function() {
+      var _debugGetSeriesKeys = function() {
 
         if(isParaRadar) {
           return chart.dimensions;
@@ -73,12 +89,12 @@
         }
       };
 
-      log = function(msg) {
+      var log = function(msg) {
         console.warn(msg);
         hasLogged = true;
       };
 
-      logTitle = function(msg) {
+      var logTitle = function(msg) {
         console.log('Checking ' + msg);
         var separator = '=========';
         for(var i=0; i< msg.length; i++) {
@@ -88,19 +104,19 @@
         hasLogged = false;
       };
 
-      logEnd = function() {
+      var logEnd = function() {
         if(!hasLogged) {
           console.log('No problem found');
           console.log(' ');
         }
       };
 
-      warn = function(msg) {
+      var warn = function(msg) {
         console.log(msg);
         hasLogged = true;
       };
 
-      _getAllPropertiesKeys = function() {
+      var _getAllPropertiesKeys = function() {
         var result = Object.keys(chart.properties);
 
         for(var i=0; i<chart.behaviors.length; i++) {
@@ -115,7 +131,7 @@
        * Check functions
        * *********************************************************/
 
-      _debugCheckConfigInfoParaRadar = function() {
+      var _debugCheckConfigInfoParaRadar = function() {
 
         var current,
             keys;
@@ -178,7 +194,7 @@
         logEnd();
       };
 
-      _debugCheckMargin = function() {
+      var _debugCheckMargin = function() {
 
         var valid = _debugObjectHasKeys(chart.margin, ['top', 'bottom', 'left', 'right']);
 
@@ -190,7 +206,7 @@
         }
       };
 
-      _debugCheckChartExtents = function() {
+      var _debugCheckChartExtents = function() {
 
         logTitle('chartExtents');
 
@@ -221,7 +237,7 @@
        * Info functions
        * *********************************************************/
 
-       _debugAddDataInfo = function(info) {
+       var _debugAddDataInfo = function(info) {
 
         var data = {},
             extents = {};
@@ -256,7 +272,7 @@
         info.data = data;
       };
 
-      _debugAddConfigInfo = function(info) {
+      var _debugAddConfigInfo = function(info) {
 
         info.config = {};
 
@@ -270,12 +286,12 @@
         //TODO: check XY/TS/Polar conf?
       };
 
-      _debugAddMiscInfo = function(info) {
+      var _debugAddMiscInfo = function(info) {
         info.misc = {};
         info.misc.margin = chart.margin;
       };
 
-      _debugAddExtentsInfo = function(info) {
+      var _debugAddExtentsInfo = function(info) {
 
         info.extents = {};
 
@@ -302,7 +318,7 @@
         info.extents.x.range = chart.x.range();
       };
 
-      _debugAddSubCompInfo = function(info) {
+      var _debugAddSubCompInfo = function(info) {
         info.subConfigs = {};
 
         var keys = _getAllPropertiesKeys();
@@ -314,7 +330,7 @@
         }
       };
 
-      _debugAddRendererInfo = function(info) {
+      var _debugAddRendererInfo = function(info) {
 
         info.render = {};
         info.render.renderToCanvas = chart.renderToCanvas;
@@ -389,7 +405,7 @@
         }
       }
 
-      debug.version = '4.7.4';
+      debug.version = '5.1.2';
       //1: warn, 2: log, 3: info
       debug.logLevel = 0;
       debug.log.renderer = false;

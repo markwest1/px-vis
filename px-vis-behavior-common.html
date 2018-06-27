@@ -1,9 +1,25 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="px-vis-polyfills.html" />
 <link rel="import" href="px-vis-behavior-colors.html" />
 
 
 <script>
-var PxVisBehavior = PxVisBehavior || {};
+var PxVisBehavior = window.PxVisBehavior = (window.PxVisBehavior || {});
 
 /**
     Name:
@@ -226,8 +242,7 @@ PxVisBehavior.formatting = [{
      * @default 'en-US'
      */
     numberFormatCulture: {
-      type:String,
-      value: 'en-US'
+      type:String
     },
     /**
      * Defines how a display number should be formatted:
@@ -322,6 +337,36 @@ PxVisBehavior.formatting = [{
 }, PxVisBehavior.truncating];
 
 /*
+  Name:
+  PxVisBehavior.dataChecks
+
+  Description:
+  Polymer behavior that provides the data checkting methods
+
+  Dependencies:
+  - D3.js
+
+  @polymerBehavior PxVisBehavior.dataChecks
+*/
+PxVisBehavior.dataChecks = {
+  /**
+   * returns true if the data is valid: non NaN, null or undefined
+   */
+    _isValidData: function(d) {
+    //false and "" will return false, which is fine as they're not valid data
+    return d || d === 0;
+  },
+
+  /**
+   * returns true if the data is not null
+   */
+  _isDataNotNull: function(d) {
+    //false and "" will return false, which is fine as they're not valid data
+    return d !== null;
+  }
+};
+
+/*
     Name:
     PxVisBehavior.dataset
 
@@ -333,7 +378,7 @@ PxVisBehavior.formatting = [{
 
     @polymerBehavior PxVisBehavior.dataset
 */
-PxVisBehavior.dataset = {
+PxVisBehavior.dataset = [{
     properties: {
       /**
        * container for the data object that drives the chart / component
@@ -346,23 +391,8 @@ PxVisBehavior.dataset = {
       chartData:{
         type: Array
       }
-    },
-    /**
-     * returns true if the data is valid: non NaN, null or undefined
-     */
-    _isValidData: function(d) {
-      //false and "" will return false, which is fine as they're not valid data
-      return d || d === 0;
-    },
-
-    /**
-     * returns true if the data is not null
-     */
-    _isDataNotNull: function(d) {
-      //false and "" will return false, which is fine as they're not valid data
-      return d !== null;
     }
-};
+}, PxVisBehavior.dataChecks];
 
 /*
     Name:
@@ -795,10 +825,7 @@ PxVisBehavior.extentsData = {
 
     @polymerBehavior PxVisBehavior.commonMethods
 */
-PxVisBehavior.commonMethods = {
-  properties: {
-  },
-
+PxVisBehavior.commonMethods = [{
   /**
    * Checks to see if an object is empty
    *
@@ -862,7 +889,7 @@ PxVisBehavior.commonMethods = {
     //use iterator over object to find out if we have any property,
     //faster than Object.keys for big objects
     var i = 0;
-    for(prop in obj) {
+    for(var prop in obj) {
       if(Object.prototype.hasOwnProperty.call(obj, prop)) {
         i++;
         break;
@@ -927,16 +954,6 @@ PxVisBehavior.commonMethods = {
   },
 
   /**
-   * Checks if a color is already hex or rgb, if must be a colors obj
-   */
-  _checkColorType: function(c) {
-    if(c[0] === '#' || (c[0] === 'r' && c[1] === 'g' && c[2] === 'b')) {
-      return c;
-    }
-    return c;
-  },
-
-  /**
    * converts a hex to rgb color
    */
   _hexToRgb: function(hex) {
@@ -962,13 +979,14 @@ PxVisBehavior.commonMethods = {
 
     var upperIndex = this.isVarNumber(upperIndex) ? upperIndex : data.length,
         lowerIndex = this.isVarNumber(lowerIndex) ? lowerIndex : 0,
-        index = Math.floor((upperIndex - lowerIndex) / 2) + lowerIndex;
+        index = Math.floor((upperIndex - lowerIndex) / 2) + lowerIndex,
+        dataVal = Number(data[index][key]);
 
-    if(data[index][key] === val) {
+    if(dataVal === val) {
       return data[index];
-    } else if(val < data[index][key]) {
+    } else if(val < dataVal) {
       return this._binarySearch(data, key, val, lowerIndex, index);
-    } else if(val > data[index][key]) {
+    } else if(val > dataVal) {
       return this._binarySearch(data, key, val, index+1, upperIndex);
     }
     return null;
@@ -984,13 +1002,14 @@ PxVisBehavior.commonMethods = {
 
     var upperIndex = this.isVarNumber(upperIndex) ? upperIndex : data.length,
         lowerIndex = this.isVarNumber(lowerIndex) ? lowerIndex : 0,
-        index = Math.floor((upperIndex - lowerIndex) / 2) + lowerIndex;
+        index = Math.floor((upperIndex - lowerIndex) / 2) + lowerIndex,
+        dataVal = Number(data[index][key]);
 
-    if(data[index][key] >= lowerFuzz && data[index][key] <= upperFuzz) {
+    if(dataVal >= lowerFuzz && dataVal <= upperFuzz) {
       return this._getAdjacentValues(data, key, lowerFuzz, upperFuzz, lowerIndex, upperIndex, index);
-    } else if(upperFuzz < data[index][key]) {
+    } else if(upperFuzz < dataVal) {
       return this._fuzzyBinarySearch(data, key, lowerFuzz, upperFuzz, lowerIndex, index);
-    } else if(lowerFuzz > data[index][key]) {
+    } else if(lowerFuzz > dataVal) {
       return this._fuzzyBinarySearch(data, key, lowerFuzz, upperFuzz, index+1, upperIndex);
     }
     return null;
@@ -1033,7 +1052,7 @@ PxVisBehavior.commonMethods = {
   */
   clone: function(object, newObject) {
     var newObject = newObject || {};
-    for (i in object) {
+    for (var i in object) {
       if (object.hasOwnProperty(i)) {
         if (typeof object[i] === 'object' && object[i] !== null) {
           newObject[i] = Array.isArray(object[i]) ? [] : {};
@@ -1049,7 +1068,7 @@ PxVisBehavior.commonMethods = {
   isVarNumber: function(n) {
     return !isNaN(parseFloat(n)) && !isNaN(n - 0);
   }
-};
+}, PxVisBehavior.dataChecks];
 
 /*
     Name:
@@ -1267,6 +1286,8 @@ PxVisBehavior.events = {
      * - `secondDateTimeFormat`: moment.js format string for the second part of the timestamp if the x Axis is time based
      * - `tooltipOrientation`: orientation of the tooltip
      * - `timezone`: the moment.js timezone to be used for the timestamp
+     * - `lineWeight`: thickness of the line
+     * - `dataKey`: the access key for the eventData value to be used to position the event
      * ```
      * Format: {
      *   "Event-Name-A":{
@@ -1318,7 +1339,7 @@ PxVisBehavior.events = {
      *   'type': 'px',
      *   'offset': 0,
      *   'lineColor': 'grey9',
-     *   'lineWeght': 1,
+     *   'lineWeight': 1,
      *   'enableTooltip': true
      *   'firstDateTimeFormat': 'HH:mm:ss ZZ',
      *   'secondDateTimeFormat': 'DD MMM YYYY',
@@ -1333,48 +1354,6 @@ PxVisBehavior.events = {
      */
     defaultEventConfig: {
       type: Object
-    },
-    /**
-     * Default defaultEventConfig
-     *
-     *```
-     * Default: {
-     *   'color': 'rgb(0,0,0)',
-     *   'icon': 'px-utl:information',
-     *   'type': 'px',
-     *   'offset': 0,
-     *   'size': 16,
-     *   'lineColor': 'rgb(0,0,0)',
-     *   'lineWeight': 1,
-     *   'enableTooltip': true,
-     *   'firstDateTimeFormat': 'HH:mm:ss ZZ',
-     *   'secondDateTimeFormat': 'DD MMM YYYY',
-     *   'separator': '|',
-     *   'timezone': 'utc',
-     *   'tooltipOrientation': 'left'
-     * }
-     *```
-     *
-     */
-    _defaultDefaultEventConfig: {
-      type: Object,
-      value: function() {
-        return {
-          'color': 'rgb(0,0,0)',
-          'icon': 'px-utl:information',
-          'type': 'px',
-          'offset': [0,0],
-          'size': 16,
-          'lineColor': 'rgb(0,0,0)',
-          'lineWeight': 1,
-          'enableTooltip': true,
-          'firstDateTimeFormat': 'HH:mm:ss ZZ',
-          'secondDateTimeFormat': 'DD MMM YYYY',
-          'separator': '|',
-          'timezone': 'utc',
-          'tooltipOrientation': 'left'
-        };
-      }
     },
 
     /**
@@ -1466,10 +1445,6 @@ PxVisBehavior.markers = {
      *       'row': 1,
      *       'priority': 10,
      *       'showTooltip': true,
-     *       'firstDateTimeFormat': 'HH:mm:ss ZZ',
-     *       'secondDateTimeFormat': 'DD MMM YYYY',
-     *       'separator': '|',
-     *       'timezone': 'utc',
      *       'tooltipOrientation': 'top'
      *   }
      * }
@@ -1478,26 +1453,6 @@ PxVisBehavior.markers = {
      */
     markerConfig: {
       type: Object
-    },
-    _defaultMarkerConfig: {
-      type: Object,
-      readonly: true,
-      value: function() {
-        return {
-          'color': 'rgb(123,123,123)',
-          'markerStrokeOpacity': 0,
-          'markerSymbol': 'square',
-          'markerSize': 64,
-          'markerScale': 1,
-          'showTooltip': true,
-          'firstDateTimeFormat': 'HH:mm:ss ZZ',
-          'secondDateTimeFormat': 'DD MMM YYYY',
-          'separator': '|',
-          'timezone': 'utc',
-          'tooltipOrientation': 'top',
-          'priority': 0
-        };
-      }
     },
     /**
      * Data representing the markers. Example:
@@ -1737,6 +1692,11 @@ PxVisBehavior.polarData = {
       value: false
     }
   },
+
+  /**
+   * Returns pixel coordinates for data values. [0,0] is the center of the
+   * radial drawing, not the top left corner
+   */
   _getPixelCoordForRadialData: function(dataX, dataY, yRange, yDomain, yDomainTot) {
     var result = [];
 
@@ -2373,6 +2333,10 @@ PxVisBehavior.measureText = {
   },
 
   _measureTextOnCanvas: function(text) {
+    if(!this._measurementCanvas) {
+      this._createMeasurementCanvas();
+    }
+
     var context = this._measurementCanvas.getContext('2d'),
     textSize = context.measureText(text);
 
@@ -2491,6 +2455,7 @@ PxVisBehavior.applyActionConfig = [{
     var keys = Object.keys(this.actionConfig),
         mouseEvent,
         action,
+		mappedAction,
         allActions,
         bindingContext = this,
         toBeUsed,
@@ -2499,15 +2464,15 @@ PxVisBehavior.applyActionConfig = [{
     for(var i=0; i<keys.length; i++) {
       mouseEvent = keys[i];
 
+      //make sure we delete all previous handlers
+      this._deletePreviousActions(d3Elem, mouseEvent);
+
       // if we already setup mousedown && up via our d3 caller, skip it
       if(dontDoUpDown && (mouseEvent === 'mousedown' || mouseEvent === 'mouseup')) {
         continue;
       }
 
       allActions = Array.isArray(this.actionConfig[keys[i]]) ? this.actionConfig[keys[i]] : [this.actionConfig[keys[i]]];
-
-      //make sure we delete all previous handlers
-      this._deletePreviousActions(d3Elem, mouseEvent);
 
       for(var j=0; j<allActions.length; j++) {
         action = allActions[j];
@@ -2595,6 +2560,7 @@ PxVisBehavior.interactionSpaceShared = [{
             'timeSeriesKey': null,
             'hidden': true,
             'series': [],
+            'seriesObj': {},
             'mouse': null,
             'xArr': null,
             'yArr': null
@@ -2617,12 +2583,14 @@ PxVisBehavior.interactionSpaceShared = [{
       'timeSeriesKey': null,
       'hidden': showTooltip,
       'series': [],
+      'seriesObj': {},
       'mouse': mousePos,
       'xArr': [],
       'yArr': [],
       'rawData': [],
       'timeStamps': [],
-      'timeStampsTracker': {}
+      'timeStampsTracker': {},
+      'additionalPoints': []
     }
   }
 }, PxVisBehavior.observerCheck, PxVisBehavior.polarData];
@@ -2705,9 +2673,9 @@ PxVisBehavior.highlightShared = [{
           //https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/apply
           //in practice we should be ok since each fuzzy search returns result for 1 point, if each point
           //returns tens of thousands we are in an absolutely crazy scenario
-          Array.prototype.push.apply(d,this._fuzzyBinarySearch(this.chartData, this.timeData, lowerFuzz, upperFuzz, null, null));
+          Array.prototype.push.apply(d,this._fuzzyBinarySearch(this.chartData, this.timeData, Number(lowerFuzz), Number(upperFuzz), null, null));
         } else {
-          d.push(this._binarySearch(this.chartData, this.timeData, this.crosshairData.timeStamps[i], null, null));
+          d.push(this._binarySearch(this.chartData, this.timeData, Number(this.crosshairData.timeStamps[i]), null, null));
         }
       }
     }
@@ -2735,7 +2703,7 @@ PxVisBehavior.highlightShared = [{
         if(this.radial) {
           var domain = axis.domain(),
               range = axis.range(),
-              dr = range[1] - range[0]
+              dr = range[1] - range[0],
               dd = domain[1] - domain[0];
           coords = this._getPixelCoordForRadialData(dataset[x], dataset[y], dr, domain, dd);
         } else {
@@ -2770,6 +2738,11 @@ PxVisBehavior.highlightShared = [{
       if(series.length) {
         ttd = this._createTooltipDataStub(series[0]["coord"], timestamp, !this.hideTooltip);
         ttd.series = series;
+        ttd.seriesObj = {};
+
+        ttd.series.forEach(function(item) {
+          ttd.seriesObj[item.name] = item;
+        });
       }
     }
     this.set("defaultEmptyData", ttd);
@@ -3000,6 +2973,7 @@ PxVisBehavior.highlightLineShared = [{
         "time": null,
         "dataset": null,
         'series': [],
+        'seriesObj': {},
         "color": null,
         "tooltipConfig": null
       };
@@ -3014,6 +2988,7 @@ PxVisBehavior.highlightLineShared = [{
         tooltipConfig = {},  //a fake configuration object we will build
         value = {},          //the series obj within tooltipData
         series = [],
+        seriesObj = {},
         max = -Number.MAX_VALUE,
         val,
         dim;
@@ -3057,6 +3032,7 @@ PxVisBehavior.highlightLineShared = [{
         //create our value obj
         value[aid] = dataset[aid];
         series.push({ 'name': aid, 'value': value });
+        seriesObj[aid] = {'name': aid, 'value': value};
       }
 
       //create our tooltipData obj
@@ -3066,6 +3042,7 @@ PxVisBehavior.highlightLineShared = [{
         'dataset': dataset,
         'yVal': dataset[last],
         'series': series,
+        'seriesObj': seriesObj,
         'color': tooltipConfig[aid]['color'],
         'tooltipConfig': tooltipConfig,
         'axis': last
@@ -3237,6 +3214,13 @@ PxVisBehavior.updateStylesOverride = {
   },
 
   created: function() {
+    /*
+      Polymer provides the updateStyles method.
+      This method is called when we reload a theme.
+      We want to update our _stylesUpdated prop when it is called
+      so, remap Polymer.updateStyles to _updateStyles and then rewrite
+      this.updateStyles to do what we want
+    */
     this._updateStyles = this.updateStyles;
     this.updateStyles = function() {
       this.debounce('styleupdate', function() {
@@ -3264,7 +3248,7 @@ PxVisBehavior.updateStylesOverride = {
 
     @polymerBehavior PxVisBehavior.timeDomain
 */
-PxVisBehavior.timeDomain = {
+PxVisBehavior.timeDomain = [{
   properties: {
     /**
      * Can be used to define a time domain to be used, typically to restrain/filter the amount
@@ -3275,9 +3259,27 @@ PxVisBehavior.timeDomain = {
       value: function() {
         return {};
       }
+    },
+    timeKey: {
+      type: String
+    }
+  },
+  observers: [
+    '_timeDomainChartData(chartData, timeKey)'
+  ],
+
+  _timeDomainChartData: function() {
+    if(this.timeKey && this.chartData && this.chartData.length && (!this._doesObjHaveValues(this.timeDomain) || !this.timeDomain.x || this.timeDomain.x.length === 0)) {
+
+      let domain = {};
+      if(this.timeDomain && this.timeDomain.y) {
+        domain.y = this.timeDomain.y;
+      }
+      domain.x = [this.chartData[0][this.timeKey], this.chartData[this.chartData.length - 1][this.timeKey]];
+      this.set('timeDomain', domain);
     }
   }
-};
+}, PxVisBehavior.dataset, PxVisBehavior.commonMethods];
 
 /**
     Name:
@@ -3358,17 +3360,16 @@ PxVisBehavior.annotationData = {
      * The annotation data: x and y values + the series which scale should be used.
      * Data is an arbitrary object you want to store for use when showing the
      * annotation
-     *
-     * [{
-     *  x: 1325897523,
-     *  y: 15.7,
-     *  series: y0,
-     *  data: {
-     *
-     *  },
-     * ...
-     * }
-     * ]
+     * ```
+     *    [{
+     *        x: 1325897523,
+     *        y: 15.7,
+     *        series: y0,
+     *        data: {...}
+     *    },{
+     *     ...
+     *     }]
+     * ```
      */
     annotationData: {
       type: Array,
@@ -3407,5 +3408,202 @@ PxVisBehavior.titleTruncation = {
   }
 };
 
+/**
+    Name:
+    PxVisBehavior.scaleTypeCheck
+
+    Description:
+    Polymer behavior that providse the scaleTypeCheck property.
+
+
+    @polymerBehavior PxVisBehavior.scaleTypeCheck
+*/
+PxVisBehavior.scaleTypeCheck = {
+  _isTimeType: function(scale) {
+    return scale === 'time' || scale === 'timeLocal'
+  },
+
+  _isOrdinalType: function(scale) {
+    return scale === 'ordinal' || scale === 'scaleBand'
+  }
+};
+
+/**
+    Name:
+    PxVisBehavior.referenceCurveProps
+
+    Description:
+    Polymer behavior that provide the properties for the reference curve.
+
+
+    @polymerBehavior PxVisBehavior.referenceCurveProps
+*/
+PxVisBehavior.referenceCurveProps = {
+  properties: {
+    /**
+    * Data to create reference curves. Format matches chartData and requires a referenceConfig with similar props to seriesConfig.
+    *
+    */
+    referenceData: Array,
+
+    /**
+    * A configuration object needed to draw reference curves. Format is similar to seriesConfig. Valid entries:
+    * - `x` : default: 'x'
+    * - `y`: default: 'y'
+    * - `interpolationFunction` : default: Px.d3.curveCardinal
+    * - `color` :
+    * - `strokeWidth` default: 1
+    *
+    */
+    referenceConfig: Object,
+  }
+};
+
+/**
+    Name:
+    PxVisBehavior.showHideClasses
+
+    Description:
+    Polymer behavior that providse the _show and _hide methods used for
+    hiding an element through css classes
+
+
+    @polymerBehavior PxVisBehavior.showHideClasses
+*/
+PxVisBehavior.showHideClasses = {
+
+  /**
+   * Will add 'hide' class if any of the arguments is falsy
+   * (so shows if everything truthy)
+   */
+  _show: function() {
+
+    for(var i=0; i<arguments.length; i++) {
+      if(!arguments[i]) {
+        return 'hide';
+      }
+    }
+
+    return '';
+  },
+
+  /**
+   * Will add 'hide' class if all arguments are not falsy
+   * (so hides if everything truthy)
+   */
+  _hide: function() {
+
+    for(var i=0; i<arguments.length; i++) {
+      if(!arguments[i]) {
+        return '';
+      }
+    }
+
+    return 'hide';
+  },
+};
+
+/**
+    Name:
+    PxVisBehavior.gradientColorsProperty
+
+    Description:
+    Polymer behavior that defines the color gradient Array/String/Function input
+
+
+    @polymerBehavior PxVisBehavior.gradientColorsProperty
+*/
+PxVisBehavior.gradientColorsProperty = {
+  properties: {
+    /**
+     * Colors used to create a gradient. Can be one of the folowing:
+     * - A single color (string), resulting in that color being applied for the whole "gradient"
+     * - An Array of colors from which a linear gradient while be created
+     * - A custom function that defined a gradient. The function takes an input that will be between 0 and 1 and should return a color based on that input.
+     * - A d3 chromatic scale, which is effectively a function as described above with predefined colors. Please see the "interpolate" functions at https://github.com/d3/d3-scale-chromatic
+     * @type {Array|String|Function}
+     */
+     gradientColors: {
+      type: Array
+    }
+  }
+};
+
+/**
+    Name:
+    PxVisBehavior.gradientColorsFunction
+
+    Description:
+    Polymer behavior that defines the color gradient function based on an
+    Array/String/Function input
+
+
+    @polymerBehavior PxVisBehavior.gradientColorsFunction
+*/
+PxVisBehavior.gradientColorsFunction = {
+  properties: {
+    /**
+     *
+     */
+    gradientColorsMin :{
+      type: Number,
+      value: 0
+    },
+    /**
+     *
+     */
+    gradientColorsMax: {
+      type: Number,
+      value: 1
+    },
+  },
+
+  /**
+   * Computes the data range.
+   *
+   */
+   _computeGradientRange: function(timeDomain) {
+
+    if(timeDomain && timeDomain.x && timeDomain.x.length > 0) {
+      this.set('gradientColorsMin', Number(timeDomain.x[0]));
+      this.set('gradientColorsMax', Number(timeDomain.x[1]));
+    }
+  },
+
+  createGradientFunction: function(colors) {
+    if(colors) {
+      if(typeof colors === 'string') {
+        return function() {
+          return colors;
+        }
+      } else if(Array.isArray(colors)) {
+
+        let fn;
+        if(colors.length === 2) {
+          fn = Px.d3.interpolateRgb(colors[0], colors[1]);
+        } else {
+          fn = Px.d3.interpolateRgbBasis(colors);
+        }
+        return function(val) {
+          return fn(this._normalizeValue(val));
+        }.bind(this);
+      } else if(typeof colors === 'function') {
+        return function(val) {
+          return colors(this._normalizeValue(val));
+        }.bind(this);
+      } else {
+        console.warn('Color gradient ' + colors + ' has an invalid type. Should be string, array or function');
+      }
+    }
+  },
+
+  _normalizeValue: function(val) {
+    if(this.gradientColorsMin === this.gradientColorsMax) {
+      return 0;
+    } else {
+      return (val - this.gradientColorsMin) / (this.gradientColorsMax - this.gradientColorsMin);
+    }
+  }
+};
 
 </script>

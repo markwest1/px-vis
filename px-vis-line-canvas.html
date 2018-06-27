@@ -1,3 +1,19 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="../polymer/polymer.html"/>
 <link rel="import" href="px-vis-behavior-common.html" />
 <link rel="import" href="px-vis-behavior-d3.html" />
@@ -119,6 +135,7 @@
 
     ready: function() {
       this._watchConfigProperty('priority', 0);
+      this._watchConfigProperty('strokeWidth', 1);
     },
 
     attached: function() {
@@ -153,32 +170,19 @@
                             this.completeSeriesConfig[this.seriesId].mutedOpacity : this.mutedOpacity;
       this._currentDrawingOptions.strokeWidth = this.strokeWidth;
 
-      this._currentDrawingOptions.lastPointRenderedIndex = null;
-      this._currentDrawingOptions.currentBatchStartIndex = 0;
-
       //render differently depending on the type of line
-      if(this.gradientLine) {
+      if(this.gradientLine || this.categoryKey) {
         //gradient line
         this._currentDrawingOptions.getColorValue = function(d) {
-          var opacity = this._isSerieMuted(d) ? this._currentDrawingOptions.mutedOpacity : this._opacityLine(d);
-          if(opacity !== 0) {
-            return this._canvasLineColor(d, opacity);
-          } else {
-            return null;
-          }
-        }.bind(this);
 
-      } else if(this.categoryKey) {
-        //category color line
-        this._currentDrawingOptions.getColorValue = function(d) {
           var opacity = this._isSerieMuted(d) ? this._currentDrawingOptions.mutedOpacity : 1;
+
           if(opacity !== 0) {
-            return this._canvasLineColor(d, opacity);
+            return this._getLineColor(d);
           } else {
             return null;
           }
         }.bind(this);
-
       }
     },
 
@@ -251,7 +255,7 @@
 
     renderOneBatch: function(start, stop) {
 
-      var data;
+      var data, opacity;
       this.canvasContext.lineWidth = this._currentDrawingOptions.strokeWidth
       this.canvasContext.lineCap = "square";
 
@@ -261,12 +265,7 @@
         this.drawClipPath();
       }
 
-      //adjust start based on last point drawned
-      this._currentDrawingOptions.currentBatchStartIndex = this._currentDrawingOptions.lastPointRenderedIndex;
-
       if(!this.multiPath) {
-        //ensure weprepend the last defined point
-        start = this._currentDrawingOptions.lastPointRenderedIndex;
         //for single line we have to slice the array to pass it to the line function
         data = this.chartData.slice(start, stop);
       }
@@ -277,11 +276,13 @@
         //strike line by line since a gradient and or color is applied
         //for multipath because each point is 1 line no need to slice the array,
         //just access each point by the appropriate index
-        for(var i = start; i < stop; i++) {
+        for(var i = start; i < stop && this.chartData[i]; i++) {
           color = this._currentDrawingOptions.getColorValue(this.chartData[i]);
+          opacity = this._isSerieMuted(this.chartData[i]) ? this._currentDrawingOptions.mutedOpacity : 1;
           if(color) {
             this.canvasContext.beginPath();
             this.canvasContext.strokeStyle = color;
+            this.canvasContext.globalAlpha = opacity;
             this.line(this.chartData[i]);
             this.canvasContext.stroke();
           }
@@ -293,13 +294,14 @@
         if(!this.multiPath) {
           opacity = this._isSerieMuted(data) ? this._currentDrawingOptions.mutedOpacity : 1;
           if(opacity !== 0) {
+            this.canvasContext.globalAlpha = opacity;
             this.line(data);
           }
         } else {
 
           //for multipath because each point is 1 line no need to slice the array,
           //just access each point by the appropriate index
-          for(var i = start; i < stop; i++) {
+          for(var i = start; i < stop && this.chartData[i]; i++) {
 
             opacity = this._isSerieMuted(this.chartData[i]) ? this._currentDrawingOptions.mutedOpacity : 1;
             if(opacity !== 0) {
@@ -308,13 +310,13 @@
           }
         }
 
-
         var dashPattern = this.completeSeriesConfig[this.seriesId] && this.completeSeriesConfig[this.seriesId]["dashPattern"] ? this.completeSeriesConfig[this.seriesId]["dashPattern"] : '';
         dashPattern = JSON.parse('[' + dashPattern +']');
         this.canvasContext.setLineDash(dashPattern);
 
         //only strike once
-        this.canvasContext.strokeStyle = this.rgbToRgba(this.completeSeriesConfig[this.seriesId]['color'], opacity);
+        this.canvasContext.strokeStyle = this.completeSeriesConfig[this.seriesId]['color'];
+        this.canvasContext.globalAlpha = opacity;
         this.canvasContext.stroke();
       }
 
@@ -327,36 +329,6 @@
       } else {
         return this.mutedSeries[this.seriesId] ? true : false;
       }
-    },
-
-    /**
-     * Returns the correct rgba to use for the canvas line.
-     *
-     * @method _canvasLineColor
-     */
-    _canvasLineColor:function(d,opacity) {
-      // figure out if we are using a category or the seriesID
-      var key = this.categoryKey ? d[this.categoryKey] : this.seriesId;
-      // check that we want to draw that category
-      if(this._colorArr[key]) {
-        // return the appropriate rgba
-        return 'rgba(' + this._colorArr[key]['r'] + ',' + this._colorArr[key]['g'] + ',' + this._colorArr[key]['b'] + ',' + opacity + ')';
-      }
-      return null;
-    },
-
-    /**
-     * Adds alpha to an rgb value.
-     *
-     * @method rgbToRgba
-     */
-    rgbToRgba: function(rgb, opacity) {
-      //assuming rgb is correctly formatted...
-      //remove ')'
-      var result = rgb.slice(0,rgb.length-1);
-      //add 'a' for 'rgba'
-      result = 'rgba' + result.slice(3);
-      return result + ',' + opacity + ')';
     }
   });
 </script>

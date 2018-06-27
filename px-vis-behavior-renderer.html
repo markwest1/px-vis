@@ -1,8 +1,24 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="px-vis-behavior-common.html">
 <link rel="import" href="px-vis-behavior-d3.html">
 
 <script>
-var PxVisBehaviorRenderer = PxVisBehaviorRenderer || {};
+var PxVisBehaviorRenderer = window.PxVisBehaviorRenderer = (window.PxVisBehaviorRenderer || {});
 
 /*
     Name:
@@ -188,7 +204,8 @@ PxVisBehaviorRenderer.base = [{
       value: function() {
         return this._initializeRendererTypeObject({
           'line': [],
-          'scatter': []
+          'scatter': [],
+          'cell': []
         });
       }
     },
@@ -413,8 +430,11 @@ PxVisBehaviorRenderer.base = [{
 
   _renderHighlight: function() {
 
-    if(this.hasUndefinedArguments(arguments) || this.domainChanged === null || !this.canvasLayers.highlighter ||
-      !this.completeSeriesConfig || this.preventInitialDrawing) {
+    if(this.hasUndefinedArguments(arguments) ||
+        !this.domainChanged ||
+        !this.canvasLayers.highlighter ||
+        !this.completeSeriesConfig ||
+        this.preventInitialDrawing) {
       return;
     }
     this._renderTypedContext('highlightData', [this.canvasLayers.highlighter]);
@@ -487,9 +507,8 @@ PxVisBehaviorRenderer.base = [{
    */
   _renderDataDebounced: function(ctx, allowCanvasClearing) {
     if(this.y &&
-         typeof this.domainChanged !== 'undefined' &&
-         this.domainChanged !== null &&
-         this._isAttached) {
+        this.domainChanged &&
+        this._isAttached) {
 
       this.fire('px-vis-chart-canvas-rendering-started', {'context': ctx});
 
@@ -811,7 +830,7 @@ PxVisBehaviorRenderer.base = [{
   PxVisBehavior.preventInitialDrawing,
   PxVisBehavior.isAttached,
   PxVisBehaviorRenderer.debounceOnPanning,
-  PxVisBehaviorD3.domainUpdateNotify,
+  PxVisBehaviorD3.domainUpdate,
   PxVisBehavior.mutedSeries,
   PxVisBehavior.completeSeriesConfig
 ];

@@ -1,9 +1,25 @@
+<!--
+Copyright (c) 2018, General Electric
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
 <link rel="import" href="../polymer/polymer.html"/>
 <link rel="import" href="px-vis-behavior-common.html" />
 <link rel="import" href="px-vis-behavior-d3.html" />
 
 <script>
-  var PxVisBehaviorScale = PxVisBehaviorScale || {};
+  var PxVisBehaviorScale = window.PxVisBehaviorScale = (window.PxVisBehaviorScale || {});
 
   /*
       Name:
@@ -59,8 +75,8 @@
       if(this.x && !forceRecreation) {
         this.x.range(range);
 
-        if(this.domainChanged !== null) {
-          this.set('domainChanged', !this.domainChanged);
+        if(this.domainChanged) {
+          this.set('domainChanged', this.domainChanged + 1);
         }
 
       } else {
@@ -80,8 +96,8 @@
       if(this.y && !forceRecreation) {
         this.y.range(range);
 
-        if(this.domainChanged !== null) {
-          this.set('domainChanged', !this.domainChanged);
+        if(this.domainChanged) {
+          this.set('domainChanged', this.domainChanged + 1);
         }
       } else {
         var y = Px.d3.scaleLinear().nice().range(range);
@@ -165,7 +181,7 @@
           this.y.domain(exts.y);
 
           // Set the domains
-          this.set('domainChanged', (this.domainChanged === null) ? true : !this.domainChanged);
+          this.set('domainChanged', this.domainChanged + 1);
 
         }
       }.bind(this), 10);
@@ -179,7 +195,7 @@
     _updateDomain: function(axesDomain) {
       if(this.y) {
         this.y.domain(axesDomain.value);
-        this.set('domainChanged', !this.domainChanged);
+        this.set('domainChanged', this.domainChanged + 1);
       }
     },
 
@@ -229,7 +245,7 @@
     PxVisBehavior.sizing,
     PxVisBehavior.chartExtents,
     PxVisBehaviorD3.radialAxisConfig,
-    PxVisBehaviorD3.domainUpdateNotify,
+    PxVisBehaviorD3.domainUpdate,
     PxVisBehaviorD3.selectedDomain,
     PxVisBehavior.mutedSeries
   ];

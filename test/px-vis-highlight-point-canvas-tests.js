@@ -1,3 +1,20 @@
+/**
+ * @license
+ * Copyright (c) 2018, General Electric
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 document.addEventListener("WebComponentsReady", function() {
   runTests();
 });
@@ -1013,11 +1030,11 @@ function runTests(){
       });
 
       test('tooltipPoint created defaultEmptyData', function() {
-        assert.deepEqual(tooltipPoint.defaultEmptyData, {"time":1397160780000,"timeSeriesKey":null,"hidden":true,"series":[{"name":"mySeries","value":{"x":3,"y0":4},"coord":[240,162]},{"name":"mySeries2","value":{"x":3,"y1":8},"coord":[240,54]}],"mouse":[240,162],"xArr":[],"yArr":[],"rawData":[],"timeStamps":[],"timeStampsTracker":{}});
+        assert.deepEqual(tooltipPoint.defaultEmptyData, {"time":1397160780000,"timeSeriesKey":null,"hidden":true,"series":[{"name":"mySeries","value":{"x":3,"y0":4},"coord":[240,162]},{"name":"mySeries2","value":{"x":3,"y1":8},"coord":[240,54]}],"seriesObj":{"mySeries":{"name":"mySeries","value":{"x":3,"y0":4},"coord":[240,162]},"mySeries2":{"name":"mySeries2","value":{"x":3,"y1":8},"coord":[240,54]}},"mouse":[240,162],"xArr":[],"yArr":[],"rawData":[],"timeStamps":[],"timeStampsTracker":{},"additionalPoints":[]});
       });
 
       test('tooltipPoint created tooltipData', function() {
-        assert.deepEqual(tooltipPoint.tooltipData, {"time":1397160780000,"timeSeriesKey":null,"hidden":true,"series":[{"name":"mySeries","value":{"x":3,"y0":4},"coord":[240,162]},{"name":"mySeries2","value":{"x":3,"y1":8},"coord":[240,54]}],"mouse":[240,162],"xArr":[],"yArr":[],"rawData":[],"timeStamps":[],"timeStampsTracker":{}});
+        assert.deepEqual(tooltipPoint.tooltipData, {"time":1397160780000,"timeSeriesKey":null,"hidden":true,"series":[{"name":"mySeries","value":{"x":3,"y0":4},"coord":[240,162]},{"name":"mySeries2","value":{"x":3,"y1":8},"coord":[240,54]}],"seriesObj":{"mySeries":{"name":"mySeries","value":{"x":3,"y0":4},"coord":[240,162]},"mySeries2":{"name":"mySeries2","value":{"x":3,"y1":8},"coord":[240,54]}},"mouse":[240,162],"xArr":[],"yArr":[],"rawData":[],"timeStamps":[],"timeStampsTracker":{},"additionalPoints":[]});
       });
 
     }); //suite
@@ -1049,7 +1066,7 @@ function runTests(){
       });
 
       test('tooltipPoint emptied tooltipData', function() {
-        assert.deepEqual(tooltipPoint.tooltipData, {"time":null,"timeSeriesKey":null,"hidden":true,"series":[{"name":"mySeries","value":null},{"name":"mySeries2","value":null}],"mouse":null,"xArr":null,"yArr":null});
+        assert.deepEqual(tooltipPoint.tooltipData,{"time":null,"timeSeriesKey":null,"hidden":true,"series":[{"name":"mySeries","value":null},{"name":"mySeries2","value":null}],"seriesObj":{},"mouse":null,"xArr":null,"yArr":null});
       });
 
     }); //suite
