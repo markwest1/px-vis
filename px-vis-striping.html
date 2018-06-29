@@ -184,8 +184,36 @@ limitations under the License.
     _renderStripes: function(data) {
       var x, w;
       for(var i = 0; i < data.length; i++) {
-        x = this.x(data[i][0]),
-        w = data[i][1] || data[i][1] === 0 ? this.x(data[i][1]) - x : 0;
+
+        // since ordinal scale is not aware of the global domain, we have to handle it separately
+        if(this.x._scaleType === "ordinal"){
+          var d = this.x.domain(),
+              tMin = d[0],
+              tMax = d[d.length - 1];
+
+          if(tMin <= data[i][0] && tMax >= data[i][0] && tMax <= data[i][1]) {
+            // our new box overlaps lower end of old box
+            x = this.x(data[i][0])
+            w = this.x(tMax) - x;
+          } else if(tMin >= data[i][0] && tMin <= data[i][1] && tMax >= data[i][1]) {
+            // our new box overlaps upper end of old box
+            x = this.x(tMin);
+            w = this.x(data[i][1]) - x;
+          } else if(tMax >= data[i][0] && tMax <= data[i][1] && tMin >= data[i][0] && tMin <= data[i][1]) {
+            // if domain start and end is in between the stripe data
+            x = this.x(tMin),
+            w = this.x(tMax) - x;
+          } else {
+            // domain is a superset for stripe data
+            x = this.x(data[i][0]),
+            w = this.x(data[i][1]) - x;
+          }
+        } else {
+          x = this.x(data[i][0]),
+            w = data[i][1] || data[i][1] === 0 ? this.x(data[i][1]) - x : 0;
+        }
+
+
 
         if(w === 0) {
           this.canvasContext.beginPath();
