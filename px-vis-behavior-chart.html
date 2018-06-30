@@ -2001,6 +2001,9 @@ PxVisBehaviorChart.zooming = [{
     //ensure the zoom stack is reset
     this.splice('zoomStack', 0, this.zoomStack.length);
 
+    // ensure extents data is reset
+    this.extentsData.eX = this.chartExtents.x;
+
     this.fire('px-vis-selected-domain-updated', { 'data':'reset', 'method': 'set', 'dataVar': 'selectedDomain' });
     this._notifyZoomed(true);
   },
