@@ -184,36 +184,33 @@ limitations under the License.
     _renderStripes: function(data) {
       var x, w;
       for(var i = 0; i < data.length; i++) {
-
         // since ordinal scale is not aware of the global domain, we have to handle it separately
         if(this.x._scaleType === "ordinal"){
           var d = this.x.domain(),
-              tMin = d[0],
-              tMax = d[d.length - 1];
+            tMin = d[0],
+            tMax = d[d.length - 1];
 
           if(tMin <= data[i][0] && tMax >= data[i][0] && tMax <= data[i][1]) {
             // our new box overlaps lower end of old box
-            x = this.x(data[i][0])
-            w = this.x(tMax) - x;
+            x = this.getLeftStripeExtensionOffset(d, data[i][0]);
+            w = this.getRightStripeExtensionOffset(d, tMax) - x;
           } else if(tMin >= data[i][0] && tMin <= data[i][1] && tMax >= data[i][1]) {
             // our new box overlaps upper end of old box
-            x = this.x(tMin);
-            w = this.x(data[i][1]) - x;
+            x = this.getLeftStripeExtensionOffset(d, tMin);
+            w = this.getRightStripeExtensionOffset(d, data[i][1]) - x;
           } else if(tMax >= data[i][0] && tMax <= data[i][1] && tMin >= data[i][0] && tMin <= data[i][1]) {
             // if domain start and end is in between the stripe data
-            x = this.x(tMin),
+            x = this.x(tMin);
             w = this.x(tMax) - x;
           } else {
             // domain is a superset for stripe data
-            x = this.x(data[i][0]),
-            w = this.x(data[i][1]) - x;
+            x = this.getLeftStripeExtensionOffset(d, data[i][0]);
+            w = this.getRightStripeExtensionOffset(d, data[i][1]) - x;
           }
         } else {
           x = this.x(data[i][0]),
             w = data[i][1] || data[i][1] === 0 ? this.x(data[i][1]) - x : 0;
         }
-
-
 
         if(w === 0) {
           this.canvasContext.beginPath();
@@ -223,6 +220,32 @@ limitations under the License.
         } else {
           this.canvasContext.fillRect(x, 0, w, this.height);
         }
+      }
+    },
+
+    getLeftStripeExtensionOffset: function(domain, stripeBoundary){
+      var domainBoundary = domain[0],
+        xVal = this.x(stripeBoundary);
+
+      if(domainBoundary === stripeBoundary)
+        return xVal;
+      else{
+        // getting the previous value off of the domain left boundary and subtracting the stripe left boundary from it
+        // then taking 49 percent of the width to extend the stripe extension offset
+        return xVal - (xVal - this.x(domain[domain.indexOf(stripeBoundary) - 1])) * 0.50;
+      }
+    },
+
+    getRightStripeExtensionOffset: function(domain, stripeBoundary){
+      var domainBoundary = domain[domain.length - 1],
+        xVal = this.x(stripeBoundary);
+
+      if(domainBoundary === stripeBoundary){
+        return xVal;
+      } else {
+        // getting the next value off of the domain right boundary and subtracting the stripe right boundary from it
+        // then taking 51 percent of the width to extend the stripe extension offset
+        return xVal + (this.x(domain[domain.indexOf(stripeBoundary) + 1]) - xVal) * 0.50;
       }
     },
 

@@ -205,11 +205,11 @@ Custom property | Description
               var xDate = new Date(xTimestamp);
 
               var paddedMonth = (xDate.getUTCMonth()+1 < 10) ? '0' + (xDate.getUTCMonth()+1) : xDate.getUTCMonth()+1;
-              var paddedDate = (xDate.getUTCDate()+1 < 10) ? '0' + (xDate.getUTCDate()+1) : xDate.getUTCDate()+1;
+              var paddedDate = (xDate.getUTCDate() < 10) ? '0' + (xDate.getUTCDate()+1) : xDate.getUTCDate()+1;
               var paddedHour = (xDate.getUTCHours() < 10) ? '0' + (xDate.getUTCHours()) : xDate.getUTCHours();
               var paddedMins = (xDate.getUTCMinutes() < 10) ? '0' + (xDate.getUTCMinutes()) : xDate.getUTCMinutes();
 
-              xVal = `${paddedMonth}/${xDate.getUTCDate()}/${xDate.getUTCFullYear()} - ${paddedHour}:${paddedMins}`;
+              xVal = `${paddedMonth}/${paddedDate}/${xDate.getUTCFullYear()} - ${paddedHour}:${paddedMins}`;
               xUnit = this.completeSeriesConfig[this.seriesKey]['xAxisUnit'] ? ' ' + this.completeSeriesConfig[this.seriesKey]['xAxisUnit'] : '';
               slash = this.displayXValuesOnly ? '' : ' / ';
               break;
