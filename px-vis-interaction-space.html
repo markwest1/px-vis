@@ -634,7 +634,7 @@ TODO implement a dev setting to choose between only showing data at that x, snap
 
       this._mouseMoveStopTimer = setTimeout(function() {
         self.fire("px-vis-interaction-space-mouse-coords", { mouse: mousePos, type: eventType});
-      }, 1000);
+      }, 300);
     },
 
     _calcCrosshairData: function() {
