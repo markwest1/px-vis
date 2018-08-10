@@ -184,7 +184,8 @@ TODO implement a dev setting to choose between only showing data at that x, snap
           'stopPanning': '_stopPanning',
           'reportMouseCoords': '_reportMouseCoords',
           'startLasso': '_startLasso',
-          'stopLasso': '_stopLasso'
+          'stopLasso': '_stopLasso',
+          'calcPinnedMarkedData': '_calcPinnedMarkedData'
         }
       },
       /**
@@ -233,6 +234,13 @@ TODO implement a dev setting to choose between only showing data at that x, snap
        * Whether tooltip data is currently being searched for.
        */
       _calcTooltip: {
+        type: Boolean,
+        value: false
+      },
+      /**
+       * Whether pinMarker data is currently being searched for.
+       */
+      _calcPinnedMarker: {
         type: Boolean,
         value: false
       },
@@ -609,6 +617,7 @@ TODO implement a dev setting to choose between only showing data at that x, snap
     _calcTooltipAndCrosshairData: function() {
       this._calcTooltip = true;
       this._calcCrosshair = true;
+      this._calcPinnedMarker = false;
 
       this._calcData();
     },
@@ -616,6 +625,7 @@ TODO implement a dev setting to choose between only showing data at that x, snap
     _calcTooltipData: function() {
       this._calcTooltip = true;
       this._calcCrosshair = false;
+      this._calcPinnedMarker = false;
 
       this._calcData();
     },
@@ -640,7 +650,15 @@ TODO implement a dev setting to choose between only showing data at that x, snap
     _calcCrosshairData: function() {
       this._calcTooltip = false;
       this._calcCrosshair = true;
+      this._calcPinnedMarker = false;
 
+      this._calcData();
+    },
+
+    _calcPinnedMarkedData: function () {
+      var mousePos = Px.d3.mouse(this._rect.node());
+      this.set('_calculatingData', true);
+      this.set('_calcPinnedMarker', true);
       this._calcData();
     },
 
@@ -713,7 +731,13 @@ TODO implement a dev setting to choose between only showing data at that x, snap
           delete dataObj.timeStamps;
           this.set('tooltipData',dataObj);
           this.fire('px-vis-tooltip-updated', { 'dataVar': 'tooltipData', 'data': dataObj, 'method':'set' });
+        }
 
+        if(this._calcPinnedMarker) {
+          delete dataObj.rawData;
+          delete dataObj.timeStamps;
+          this.set('tooltipData',dataObj);
+          this.fire('px-vis-pinnedmarker-updated', { 'dataVar': 'tooltipData', 'data': dataObj, 'method':'set' });
         }
 
         this.set('_calculatingData', false);
