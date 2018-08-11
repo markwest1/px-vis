@@ -205,7 +205,7 @@ Custom property | Description
               var xDate = new Date(xTimestamp);
 
               var paddedMonth = (xDate.getUTCMonth()+1 < 10) ? '0' + (xDate.getUTCMonth()+1) : xDate.getUTCMonth()+1;
-              var paddedDate = (xDate.getUTCDate() < 10) ? '0' + (xDate.getUTCDate()+1) : xDate.getUTCDate()+1;
+              var paddedDate = (xDate.getUTCDate() < 10) ? '0' + (xDate.getUTCDate()) : xDate.getUTCDate();
               var paddedHour = (xDate.getUTCHours() < 10) ? '0' + (xDate.getUTCHours()) : xDate.getUTCHours();
               var paddedMins = (xDate.getUTCMinutes() < 10) ? '0' + (xDate.getUTCMinutes()) : xDate.getUTCMinutes();
 
