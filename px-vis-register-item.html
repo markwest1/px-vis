@@ -62,25 +62,34 @@ Custom property | Description
         flex-shrink: 0;
       }
     </style>
-    <span id="regItem"
-      class$="[[_baseClasses]] register-item--min-width"
-      name$="R[[seriesKey]]">
-      <span id="regWithoutMenu" class$="flex [[_itemMutedToStart]]" style="width:100%;">
-        <span class="seriesMarker flex">
-          <span class="seriesMarkerIcon"
-            style$="[[_calcDashPattern(_itemColor, _dashPattern, _negativeColor)]];"
-            name$="R[[seriesKey]]">&nbsp;</span>
-        </span>
-        <span class$="[[_wrapperClass]]" style="width:100%;">
-          <div id="seriesName" class="seriesName flex__item--msfix" name$="R[[seriesKey]]">
-            [[_truncatedName]]&nbsp;
+    <div id="regItem"
+         class$="[[_baseClasses]] register-item--min-width"
+         style="width: 150px"
+         name$="R[[seriesKey]]">
+      <div id="regWithoutMenu" style="padding: 0px;" class$="[[_itemMutedToStart]]">
+        <div style="padding: 0px;" class="seriesMarker">
+          <div style="padding: 0px" class="seriesMarkerIcon"
+               style$="[[_calcDashPattern(_itemColor, _dashPattern, _negativeColor)]];"
+               name$="R[[seriesKey]]">
+            <div style="width:100%;padding-left: 10px">
+              <div style="padding: 0px" id="seriesName" class="seriesName" name$="R[[seriesKey]]">
+                [[_truncatedName]]
+              </div>
+              <!-- Use inline flex to avoid the browser adding spaces between our sub elements-->
+              <div style="padding: 0px" class="seriesData" name$="R[[seriesKey]]">
+                [[_displayedXValue]]
+                </br>
+                <span class="epsilon">[[_displayedYValue]]</span>
+
+                <template is="dom-if" if="[[_isDsplayedYValueUnitsEmpty]]">
+                  </br>
+                  <span class="zeta">[[_displayedYValueUnits]]</span>
+                </template>
+              </div>
+            </div>
           </div>
-          <!-- Use inline flex to avoid the browser adding spaces between our sub elements-->
-          <div class="seriesData flex__item--msfix" name$="R[[seriesKey]]">
-            [[_displayedData]]
-          </div>
-        </span>
-      </span>
+        </div>
+      </div>
       <template id="menuTemplate" is="dom-if" if="[[_hasDynamicMenu]]">
         <px-vis-dynamic-menu
           id="menu"
@@ -89,7 +98,7 @@ Custom property | Description
           dynamic-menu-config="[[dynamicMenuConfig]]">
         </px-vis-dynamic-menu>
       </template>
-    </span>
+    </div>
     <template is="dom-if" if="[[_isOfType(xAxisType, 'linear')]]">
       <px-number-formatter-no-display
         id="xFormatter"
@@ -143,6 +152,18 @@ Custom property | Description
         value: ''
       },
       _displayedData: {
+        type: String,
+        value: ''
+      },
+      _displayedXValue: {
+        type: String,
+        value: ''
+      },
+      _displayedYValue: {
+        type: String,
+        value: ''
+      },
+      _displayedYValueUnits: {
         type: String,
         value: ''
       },
@@ -226,6 +247,7 @@ Custom property | Description
               slash = this.displayXValuesOnly ? '' : ' / ';
               break;
           }
+          this.set('_displayedXValue', xVal+slash+xUnit);
         }
 
         //process Y val
@@ -242,6 +264,8 @@ Custom property | Description
           }
 
           yUnit = this.completeSeriesConfig[this.seriesKey]['yAxisUnit'] ? ' ' + this.completeSeriesConfig[this.seriesKey]['yAxisUnit'] : '';
+          this.set('_displayedYValue', yVal);
+          this.set('_displayedYValueUnits', yUnit);
         }
       }
 
@@ -327,6 +351,10 @@ Custom property | Description
 
     _checkLinearType: function(axis) {
       return this._isOfType(axis, ['linear','log']);
+    },
+
+    _isDsplayedYValueUnitsEmpty: function(){
+      return this._displayedYValueUnits.length === 0;
     }
   });
 </script>
