@@ -78,12 +78,10 @@ Custom property | Description
               <!-- Use inline flex to avoid the browser adding spaces between our sub elements-->
               <div style="padding: 0px" class="seriesData" name$="R[[seriesKey]]">
                 [[_displayedXValue]]
-                </br>
-                <span class="epsilon">[[_displayedYValue]]</span>
+                <div class="epsilon">[[_displayedYValue]]</div>
 
                 <template is="dom-if" if="[[_isDsplayedYValueUnitsEmpty]]">
-                  </br>
-                  <span class="zeta">[[_displayedYValueUnits]]</span>
+                  <div class="zeta">[[_displayedYValueUnits]]</div>
                 </template>
               </div>
             </div>
@@ -247,7 +245,7 @@ Custom property | Description
               slash = this.displayXValuesOnly ? '' : ' / ';
               break;
           }
-          this.set('_displayedXValue', xVal+slash+xUnit);
+          this.set('_displayedXValue', xVal+xUnit);
         }
 
         //process Y val
