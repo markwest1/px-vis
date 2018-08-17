@@ -227,8 +227,9 @@ Custom property | Description
               var paddedDate = (xDate.getUTCDate() < 10) ? '0' + (xDate.getUTCDate()) : xDate.getUTCDate();
               var paddedHour = (xDate.getUTCHours() < 10) ? '0' + (xDate.getUTCHours()) : xDate.getUTCHours();
               var paddedMins = (xDate.getUTCMinutes() < 10) ? '0' + (xDate.getUTCMinutes()) : xDate.getUTCMinutes();
+              var paddedSeconds = xDate.getUTCSeconds() < 10 ? '0' + xDate.getUTCSeconds() : xDate.getUTCSeconds();
 
-              xVal = `${paddedMonth}/${paddedDate}/${xDate.getUTCFullYear()} - ${paddedHour}:${paddedMins}`;
+              xVal = `${paddedMonth}/${paddedDate}/${xDate.getUTCFullYear()} - ${paddedHour}:${paddedMins}:${paddedSeconds}`;
               xUnit = this.completeSeriesConfig[this.seriesKey]['xAxisUnit'] ? ' ' + this.completeSeriesConfig[this.seriesKey]['xAxisUnit'] : '';
               slash = this.displayXValuesOnly ? '' : ' / ';
               break;
