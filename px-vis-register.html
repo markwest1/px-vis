@@ -524,6 +524,18 @@ Custom property | Description
 
       var time = this.tooltipData.time;
 
+      // this is to check if its a scatter plot and if we have the time attribute in the completeSeriesConfig for that serie
+      // then we take that.... this is usually in case we have scatter plot with x as timestamp
+      if(this.completeSeriesConfig && this.tooltipData
+        && this.tooltipData.series && this.tooltipData.series.length > 0){
+        var series = this.tooltipData.series[0].name;
+        if(this.completeSeriesConfig[series] && this.completeSeriesConfig[series].time){
+          time = (this.tooltipData.series[0].value)
+            ? this.tooltipData.series[0].value[this.completeSeriesConfig[series].time]
+            : time;
+        }
+      }
+
       if(time) {
         var momentObj1 = this.formatTimestamp(
           time,

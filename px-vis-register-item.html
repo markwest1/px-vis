@@ -62,32 +62,25 @@ Custom property | Description
         flex-shrink: 0;
       }
     </style>
-    <div id="regItem"
-         class$="[[_baseClasses]] register-item--min-width"
-         style="width: 150px"
-         name$="R[[seriesKey]]">
-      <div id="regWithoutMenu" style="padding: 0px;" class$="[[_itemMutedToStart]]">
-        <div style="padding: 0px;" class="seriesMarker">
-          <div style="padding: 0px" class="seriesMarkerIcon"
-               style$="[[_calcDashPattern(_itemColor, _dashPattern, _negativeColor)]];"
-               name$="R[[seriesKey]]">
-            <div style="width:100%;padding-left: 10px">
-              <div style="padding: 0px" id="seriesName" class="seriesName" name$="R[[seriesKey]]">
-                [[_truncatedName]]
-              </div>
-              <!-- Use inline flex to avoid the browser adding spaces between our sub elements-->
-              <div style="padding: 0px" class="seriesData" name$="R[[seriesKey]]">
-                [[_displayedXValue]]
-                <div class="epsilon">[[_displayedYValue]]</div>
-
-                <template is="dom-if" if="[[_isDsplayedYValueUnitsEmpty]]">
-                  <div class="zeta">[[_displayedYValueUnits]]</div>
-                </template>
-              </div>
-            </div>
+    <span id="regItem"
+          class$="[[_baseClasses]] register-item--min-width"
+          name$="R[[seriesKey]]">
+      <span id="regWithoutMenu" class$="flex [[_itemMutedToStart]]" style="width:100%;">
+        <span class="seriesMarker flex">
+          <span class="seriesMarkerIcon"
+                style$="[[_calcDashPattern(_itemColor, _dashPattern, _negativeColor)]];"
+                name$="R[[seriesKey]]">&nbsp;</span>
+        </span>
+        <span class$="[[_wrapperClass]]" style="width:100%;">
+          <div id="seriesName" class="seriesName flex__item--msfix" name$="R[[seriesKey]]">
+            [[_truncatedName]]&nbsp;
           </div>
-        </div>
-      </div>
+          <!-- Use inline flex to avoid the browser adding spaces between our sub elements-->
+          <div class="seriesData flex__item--msfix" name$="R[[seriesKey]]">
+            [[_displayedData]]
+          </div>
+        </span>
+      </span>
       <template id="menuTemplate" is="dom-if" if="[[_hasDynamicMenu]]">
         <px-vis-dynamic-menu
           id="menu"
@@ -96,7 +89,7 @@ Custom property | Description
           dynamic-menu-config="[[dynamicMenuConfig]]">
         </px-vis-dynamic-menu>
       </template>
-    </div>
+    </span>
     <template is="dom-if" if="[[_isOfType(xAxisType, 'linear')]]">
       <px-number-formatter-no-display
         id="xFormatter"
@@ -153,18 +146,6 @@ Custom property | Description
         type: String,
         value: ''
       },
-      _displayedXValue: {
-        type: String,
-        value: ''
-      },
-      _displayedYValue: {
-        type: String,
-        value: ''
-      },
-      _displayedYValueUnits: {
-        type: String,
-        value: ''
-      },
       displayYValuesOnly: {
         type: Boolean,
         value: false
@@ -197,17 +178,17 @@ Custom property | Description
 
     _computeItemDebounced: function() {
       var xKey = this.completeSeriesConfig[this.seriesKey]['x'],
-          yKey = this.completeSeriesConfig[this.seriesKey]['y'],
-          xVal = '',
-          xUnit = '',
-          slash = '',
-          yVal = '',
-          yUnit = '';
+        yKey = this.completeSeriesConfig[this.seriesKey]['y'],
+        xVal = '',
+        xUnit = '',
+        slash = '',
+        yVal = '',
+        yUnit = '';
 
 
       if(this.data && this.data.value &&
-          (this.displayYValuesOnly || this._isValidData(this.data.value[xKey])) &&
-          this._isValidData(this.data.value[yKey])) {
+        (this.displayYValuesOnly || this._isValidData(this.data.value[xKey])) &&
+        this._isValidData(this.data.value[yKey])) {
 
         //process X val
         if(!this.displayYValuesOnly) {
@@ -220,20 +201,6 @@ Custom property | Description
               break;
 
             case 'ordinal':
-              var xTimestamp = this.data.value[xKey];
-              var xDate = new Date(xTimestamp);
-
-              var paddedMonth = (xDate.getUTCMonth()+1 < 10) ? '0' + (xDate.getUTCMonth()+1) : xDate.getUTCMonth()+1;
-              var paddedDate = (xDate.getUTCDate() < 10) ? '0' + (xDate.getUTCDate()) : xDate.getUTCDate();
-              var paddedHour = (xDate.getUTCHours() < 10) ? '0' + (xDate.getUTCHours()) : xDate.getUTCHours();
-              var paddedMins = (xDate.getUTCMinutes() < 10) ? '0' + (xDate.getUTCMinutes()) : xDate.getUTCMinutes();
-              var paddedSeconds = xDate.getUTCSeconds() < 10 ? '0' + xDate.getUTCSeconds() : xDate.getUTCSeconds();
-
-              xVal = `${paddedMonth}/${paddedDate}/${xDate.getUTCFullYear()} - ${paddedHour}:${paddedMins}:${paddedSeconds}`;
-              xUnit = this.completeSeriesConfig[this.seriesKey]['xAxisUnit'] ? ' ' + this.completeSeriesConfig[this.seriesKey]['xAxisUnit'] : '';
-              slash = this.displayXValuesOnly ? '' : ' / ';
-              break;
-
             case 'scaleBand':
               xVal = this.data.value[xKey];
               xUnit = this.completeSeriesConfig[this.seriesKey]['xAxisUnit'] ? ' ' + this.completeSeriesConfig[this.seriesKey]['xAxisUnit'] : '';
@@ -246,7 +213,6 @@ Custom property | Description
               slash = this.displayXValuesOnly ? '' : ' / ';
               break;
           }
-          this.set('_displayedXValue', xVal+xUnit);
         }
 
         //process Y val
@@ -263,21 +229,19 @@ Custom property | Description
           }
 
           yUnit = this.completeSeriesConfig[this.seriesKey]['yAxisUnit'] ? ' ' + this.completeSeriesConfig[this.seriesKey]['yAxisUnit'] : '';
-          this.set('_displayedYValue', yVal);
-          this.set('_displayedYValueUnits', yUnit);
         }
       }
 
       var display = this.reverseDisplayOrder ?
-          yVal + yUnit + slash + xVal + xUnit :
-          xVal + xUnit + slash + yVal + yUnit;
+        yVal + yUnit + slash + xVal + xUnit :
+        xVal + xUnit + slash + yVal + yUnit;
 
       this.set('_displayedData', display);
     },
 
     _returnValue: function(d, key) {
       if(!d || !this.completeSeriesConfig || !d.value ||
-          d.value[this.completeSeriesConfig[this.seriesKey][key]] === undefined) {
+        d.value[this.completeSeriesConfig[this.seriesKey][key]] === undefined) {
         return null;
       }
 
@@ -314,7 +278,7 @@ Custom property | Description
 
         //build a gradient on 10 values
         let gradient = this.createGradientFunction(color),
-            cssString = 'background:linear-gradient(';
+          cssString = 'background:linear-gradient(';
         for(let i=0; i<10; i++) {
           cssString += gradient(i/10) + ',';
         }
@@ -329,7 +293,7 @@ Custom property | Description
 
       } else if((!patternItems || patternItems.length < 2) && negative) {
         return 'background:linear-gradient(' + color + ' 50%,' + negative + ' 50%)';
-      // TODO future case where we can have a pattern and negative color needs to be addressed
+        // TODO future case where we can have a pattern and negative color needs to be addressed
       } else {
         var result = 'to bottom';
         var position = 0;
@@ -350,10 +314,6 @@ Custom property | Description
 
     _checkLinearType: function(axis) {
       return this._isOfType(axis, ['linear','log']);
-    },
-
-    _isDsplayedYValueUnitsEmpty: function(){
-      return this._displayedYValueUnits.length === 0;
     }
   });
 </script>
