@@ -267,6 +267,8 @@ limitations under the License.
           translate,
           tx,ty,h,angle,angle_2PI;
 
+      var chartDataMousePointMap = [];
+
       this.canvasContext.beginPath();
       for(var i = start; i < stop && this.chartData[i]; i++) {
 
@@ -278,6 +280,7 @@ limitations under the License.
 
         //get the position of the symbol
         translate = this._getTransform(this.chartData[i]);
+        chartDataMousePointMap.push({key: this.chartData[i], value: translate});
 
         // draw arrow :
         // only draw if segment length is over x pixels AND the previous data point is valid
@@ -312,7 +315,11 @@ limitations under the License.
         previousTranslate = translate;
 
       }
+
+      this.fire('px-chart-data-rendered', chartDataMousePointMap);
+
       this.canvasContext.closePath();
+
       this._currentDrawingOptions.drawingFunction();
 
       //restore canvas pos
