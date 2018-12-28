@@ -96,7 +96,7 @@ limitations under the License.
         this._isLassoing = true;
   
         //in case the user clicks inside the chart, and mouses out, we are waiting for a mouseup, and closing our action box with the coordinates available on the mouseup.
-        Px.d3.select(document).on('mouseup.action', this._stopLasso.bind(this));
+        Px.d3.select(document).on('mouseup.action', this._stopLasso.bind(this, this));
         Px.d3.select(document).on('mousemove.action', this._updateLasso.bind(this));
   
         var mousePos = Px.d3.mouse(this._rect.node());
@@ -232,9 +232,11 @@ limitations under the License.
       return result;
     },
   
-    _stopLasso: function() {
-      if (this._lassoCoords.length !== 0) {
-        this.fire("px-vis-lasso-coords-stopped", this._lassoCoords);
+    _stopLasso: function(args) {
+      if (args) {
+        if (this._lassoCoords.length !== 0) {
+          this.fire("px-vis-lasso-coords-stopped", this._lassoCoords);
+        }
       }
       this._isLassoing = false;
     },
